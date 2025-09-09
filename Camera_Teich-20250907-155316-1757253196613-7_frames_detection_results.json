@@ -1,0 +1,16 @@
+{
+  "metadata": {
+    "timestamp": "2025-09-09T17:55:28.187659",
+    "frames_folder": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames",
+    "total_frames": 33554,
+    "frames_to_process": 1119,
+    "processed_frames": 1119,
+    "frames_with_detections": 0,
+    "detection_threshold": 0.1,
+    "text_labels": [
+      "cat",
+      "dog"
+    ]
+  },
+  "detections": []
+}
