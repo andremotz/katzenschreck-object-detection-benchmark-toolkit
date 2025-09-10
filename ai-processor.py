@@ -40,6 +40,12 @@ Beispiel:
     print(f"Lade AI-Modell...")
     processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
     model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
+    
+    # GPU-Unterstützung prüfen und aktivieren
+    device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
+    print(f"Verwendetes Device: {device}")
+    model = model.to(device)
+    
     print(f"Modell geladen. Verarbeite Frames aus: {frames_folder}")
 
     # Alle Frame-Bilder finden und sortieren
@@ -110,10 +116,12 @@ Beispiel:
             print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{frames_to_process}) | Frame {frame_number:6d} | Restzeit: {remaining_str}", end="", flush=True)
             
             inputs = processor(text=text_labels, images=image, return_tensors="pt")
+            # Inputs auf das gleiche Device verschieben wie das Modell
+            inputs = {k: v.to(device) for k, v in inputs.items()}
             outputs = model(**inputs)
             
             # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
-            target_sizes = torch.tensor([(image.height, image.width)])
+            target_sizes = torch.tensor([(image.height, image.width)]).to(device)
             # Convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
             results = processor.post_process_grounded_object_detection(
                 outputs=outputs, target_sizes=target_sizes, threshold=0.1, text_labels=text_labels
@@ -165,11 +173,9 @@ Beispiel:
     folder_name = os.path.basename(frames_folder)
     output_filename = f"{folder_name}_detection_results.json"
     
-    # Results-Ordner erstellen falls er nicht existiert
-    results_dir = os.path.join(os.getcwd(), "detection_results")
-    os.makedirs(results_dir, exist_ok=True)
-    
-    output_path = os.path.join(results_dir, output_filename)
+    # JSON-Datei neben dem verarbeiteten Ordner speichern
+    parent_dir = os.path.dirname(frames_folder)
+    output_path = os.path.join(parent_dir, output_filename)
 
     # Endstatistiken berechnen
     end_time = datetime.now()
