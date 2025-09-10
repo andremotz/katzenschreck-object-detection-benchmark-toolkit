@@ -1,16 +1,411 @@
 {
   "metadata": {
-    "timestamp": "2025-09-09T17:55:28.187659",
+    "timestamp": "2025-09-09T19:08:11.588499",
     "frames_folder": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames",
     "total_frames": 33554,
     "frames_to_process": 1119,
     "processed_frames": 1119,
-    "frames_with_detections": 0,
+    "frames_with_detections": 14,
     "detection_threshold": 0.1,
     "text_labels": [
       "cat",
       "dog"
     ]
   },
-  "detections": []
+  "detections": [
+    {
+      "frame_number": 390,
+      "frame_filename": "frame_000390.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_000390.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "dog",
+          "confidence": 0.176,
+          "bounding_box": {
+            "xmin": 2658.54,
+            "ymin": 890.17,
+            "xmax": 2698.77,
+            "ymax": 936.5
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 4710,
+      "frame_filename": "frame_004710.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_004710.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "dog",
+          "confidence": 0.253,
+          "bounding_box": {
+            "xmin": 3436.71,
+            "ymin": 343.53,
+            "xmax": 3788.85,
+            "ymax": 622.37
+          }
+        },
+        {
+          "label": "dog",
+          "confidence": 0.109,
+          "bounding_box": {
+            "xmin": 3587.81,
+            "ymin": 357.2,
+            "xmax": 3813.84,
+            "ymax": 603.52
+          }
+        },
+        {
+          "label": "dog",
+          "confidence": 0.102,
+          "bounding_box": {
+            "xmin": 3433.78,
+            "ymin": 358.99,
+            "xmax": 3582.62,
+            "ymax": 617.04
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 4740,
+      "frame_filename": "frame_004740.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_004740.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "cat",
+          "confidence": 0.159,
+          "bounding_box": {
+            "xmin": 2787.82,
+            "ymin": 683.98,
+            "xmax": 3102.59,
+            "ymax": 949.77
+          }
+        },
+        {
+          "label": "cat",
+          "confidence": 0.562,
+          "bounding_box": {
+            "xmin": 2563.78,
+            "ymin": 684.81,
+            "xmax": 3107.25,
+            "ymax": 1113.73
+          }
+        },
+        {
+          "label": "cat",
+          "confidence": 0.138,
+          "bounding_box": {
+            "xmin": 2584.18,
+            "ymin": 685.19,
+            "xmax": 3101.07,
+            "ymax": 995.09
+          }
+        },
+        {
+          "label": "cat",
+          "confidence": 0.107,
+          "bounding_box": {
+            "xmin": 2563.16,
+            "ymin": 821.9,
+            "xmax": 2826.52,
+            "ymax": 1106.19
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 4770,
+      "frame_filename": "frame_004770.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_004770.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "cat",
+          "confidence": 0.145,
+          "bounding_box": {
+            "xmin": 1271.43,
+            "ymin": 1078.6,
+            "xmax": 1320.68,
+            "ymax": 1149.52
+          }
+        },
+        {
+          "label": "cat",
+          "confidence": 0.596,
+          "bounding_box": {
+            "xmin": 1369.25,
+            "ymin": 1115.6,
+            "xmax": 1893.39,
+            "ymax": 1499.38
+          }
+        },
+        {
+          "label": "cat",
+          "confidence": 0.149,
+          "bounding_box": {
+            "xmin": 1732.29,
+            "ymin": 1141.11,
+            "xmax": 1925.62,
+            "ymax": 1436.73
+          }
+        },
+        {
+          "label": "cat",
+          "confidence": 0.27,
+          "bounding_box": {
+            "xmin": 1253.52,
+            "ymin": 1902.06,
+            "xmax": 1642.82,
+            "ymax": 2071.0
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 7260,
+      "frame_filename": "frame_007260.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_007260.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "dog",
+          "confidence": 0.118,
+          "bounding_box": {
+            "xmin": 251.82,
+            "ymin": 844.61,
+            "xmax": 555.4,
+            "ymax": 947.72
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 7290,
+      "frame_filename": "frame_007290.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_007290.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "dog",
+          "confidence": 0.103,
+          "bounding_box": {
+            "xmin": 252.12,
+            "ymin": 845.32,
+            "xmax": 554.33,
+            "ymax": 947.35
+          }
+        },
+        {
+          "label": "dog",
+          "confidence": 0.109,
+          "bounding_box": {
+            "xmin": 3099.23,
+            "ymin": 1040.53,
+            "xmax": 3776.22,
+            "ymax": 1307.92
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 9330,
+      "frame_filename": "frame_009330.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_009330.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "dog",
+          "confidence": 0.103,
+          "bounding_box": {
+            "xmin": 255.28,
+            "ymin": 835.42,
+            "xmax": 616.49,
+            "ymax": 945.62
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 27780,
+      "frame_filename": "frame_027780.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_027780.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "cat",
+          "confidence": 0.102,
+          "bounding_box": {
+            "xmin": 1259.09,
+            "ymin": 1900.2,
+            "xmax": 1643.61,
+            "ymax": 2064.93
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 27840,
+      "frame_filename": "frame_027840.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_027840.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "cat",
+          "confidence": 0.107,
+          "bounding_box": {
+            "xmin": 1257.9,
+            "ymin": 1900.55,
+            "xmax": 1643.45,
+            "ymax": 2065.48
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 27870,
+      "frame_filename": "frame_027870.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_027870.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "dog",
+          "confidence": 0.102,
+          "bounding_box": {
+            "xmin": 2663.28,
+            "ymin": 889.77,
+            "xmax": 2713.95,
+            "ymax": 943.26
+          }
+        },
+        {
+          "label": "cat",
+          "confidence": 0.133,
+          "bounding_box": {
+            "xmin": 1257.93,
+            "ymin": 1900.91,
+            "xmax": 1644.29,
+            "ymax": 2065.54
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 27900,
+      "frame_filename": "frame_027900.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_027900.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "cat",
+          "confidence": 0.117,
+          "bounding_box": {
+            "xmin": 1258.69,
+            "ymin": 1900.61,
+            "xmax": 1644.36,
+            "ymax": 2065.66
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 27930,
+      "frame_filename": "frame_027930.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_027930.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "cat",
+          "confidence": 0.116,
+          "bounding_box": {
+            "xmin": 1258.47,
+            "ymin": 1900.07,
+            "xmax": 1643.76,
+            "ymax": 2065.48
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 27960,
+      "frame_filename": "frame_027960.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_027960.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "cat",
+          "confidence": 0.113,
+          "bounding_box": {
+            "xmin": 1258.06,
+            "ymin": 1900.24,
+            "xmax": 1643.38,
+            "ymax": 2065.93
+          }
+        }
+      ]
+    },
+    {
+      "frame_number": 27990,
+      "frame_filename": "frame_027990.jpg",
+      "frame_path": "/Users/andremotz/Downloads/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7_frames/frame_027990.jpg",
+      "image_size": {
+        "width": 3840,
+        "height": 2160
+      },
+      "detections": [
+        {
+          "label": "cat",
+          "confidence": 0.113,
+          "bounding_box": {
+            "xmin": 1258.49,
+            "ymin": 1900.39,
+            "xmax": 1643.56,
+            "ymax": 2066.03
+          }
+        }
+      ]
+    }
+  ]
 }
