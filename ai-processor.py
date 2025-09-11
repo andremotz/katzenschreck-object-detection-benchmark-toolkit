@@ -3,6 +3,7 @@ import glob
 import json
 import argparse
 import sys
+import gc
 from datetime import datetime, timedelta
 from pathlib import Path
 from PIL import Image
@@ -10,6 +11,26 @@ import torch
 import cv2
 
 from transformers import Owlv2Processor, Owlv2ForObjectDetection
+
+
+def clear_memory(device):
+    """
+    Bereinigt GPU/MPS Memory um Out-of-Memory-Fehler zu vermeiden
+    
+    Args:
+        device: Das verwendete Compute-Device
+    """
+    # Garbage Collection für Python-Objekte
+    gc.collect()
+    
+    # PyTorch Memory Cache leeren
+    if device.type == 'cuda':
+        torch.cuda.empty_cache()
+        torch.cuda.synchronize()
+    elif device.type == 'mps':
+        torch.mps.empty_cache()
+        torch.mps.synchronize()
+
 
 def process_video_directly(video_path, processor, model, device, text_labels):
     """
@@ -109,11 +130,26 @@ def process_video_directly(video_path, processor, model, device, text_labels):
             
             print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{total_frames}) | Frame {processed_count-1:6d} | Restzeit: {remaining_str}", end="", flush=True)
             
-            # AI-Verarbeitung
-            inputs = processor(text=text_labels, images=image, return_tensors="pt")
-            # Inputs auf das gleiche Device verschieben wie das Modell
-            inputs = {k: v.to(device) for k, v in inputs.items()}
-            outputs = model(**inputs)
+            # AI-Verarbeitung mit Memory-Error-Handling
+            try:
+                inputs = processor(text=text_labels, images=image, return_tensors="pt")
+                # Inputs auf das gleiche Device verschieben wie das Modell
+                inputs = {k: v.to(device) for k, v in inputs.items()}
+                outputs = model(**inputs)
+            except RuntimeError as e:
+                if "out of memory" in str(e).lower():
+                    print(f" -> Memory-Fehler! Bereinige Cache und versuche erneut...")
+                    clear_memory(device)
+                    # Zweiter Versuch
+                    try:
+                        inputs = processor(text=text_labels, images=image, return_tensors="pt")
+                        inputs = {k: v.to(device) for k, v in inputs.items()}
+                        outputs = model(**inputs)
+                    except RuntimeError as e2:
+                        print(f" -> Persistenter Memory-Fehler, überspringe Frame: {e2}")
+                        continue
+                else:
+                    raise e
             
             # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
             target_sizes = torch.tensor([(image.height, image.width)]).to(device)
@@ -158,6 +194,10 @@ def process_video_directly(video_path, processor, model, device, text_labels):
                 print(f" -> {len(boxes)} Detektion(en)!")
             else:
                 print(" -> keine Detektionen")
+            
+            # Memory-Management: Alle 50 Frames Memory leeren
+            if processed_count % 50 == 0:
+                clear_memory(device)
     
     except KeyboardInterrupt:
         print("\nVerarbeitung durch Benutzer abgebrochen")
@@ -246,6 +286,10 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     print(f"Verwendetes Device: {device}")
     model = model.to(device)
     
+    # Memory bereinigen vor dem Start
+    clear_memory(device)
+    print(f"Memory-Cache geleert für optimale Performance")
+    
     text_labels = [["cat", "dog"]]
     
     # Je nach Input-Typ unterschiedlich verarbeiten
@@ -331,10 +375,26 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 
                 print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{frames_to_process}) | Frame {frame_number:6d} | Restzeit: {remaining_str}", end="", flush=True)
                 
-                inputs = processor(text=text_labels, images=image, return_tensors="pt")
-                # Inputs auf das gleiche Device verschieben wie das Modell
-                inputs = {k: v.to(device) for k, v in inputs.items()}
-                outputs = model(**inputs)
+                # AI-Verarbeitung mit Memory-Error-Handling
+                try:
+                    inputs = processor(text=text_labels, images=image, return_tensors="pt")
+                    # Inputs auf das gleiche Device verschieben wie das Modell
+                    inputs = {k: v.to(device) for k, v in inputs.items()}
+                    outputs = model(**inputs)
+                except RuntimeError as e:
+                    if "out of memory" in str(e).lower():
+                        print(f" -> Memory-Fehler! Bereinige Cache und versuche erneut...")
+                        clear_memory(device)
+                        # Zweiter Versuch
+                        try:
+                            inputs = processor(text=text_labels, images=image, return_tensors="pt")
+                            inputs = {k: v.to(device) for k, v in inputs.items()}
+                            outputs = model(**inputs)
+                        except RuntimeError as e2:
+                            print(f" -> Persistenter Memory-Fehler, überspringe Frame: {e2}")
+                            continue
+                    else:
+                        raise e
                 
                 # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
                 target_sizes = torch.tensor([(image.height, image.width)]).to(device)
@@ -380,6 +440,10 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                     print(f" -> {len(boxes)} Detektion(en)!")
                 else:
                     print(" -> keine Detektionen")
+                
+                # Memory-Management: Alle 50 Frames Memory leeren
+                if processed_count % 50 == 0:
+                    clear_memory(device)
             
             except Exception as e:
                 print(f"Fehler beim Verarbeiten von {frame_path}: {e}")
