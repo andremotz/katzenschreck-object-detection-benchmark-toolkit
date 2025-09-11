@@ -126,13 +126,6 @@ Beispiele:
         help='JPEG-Qualität für Frames (1-100, Standard: 95)'
     )
     
-    
-    parser.add_argument(
-        '--keep-frames',
-        action='store_true',
-        help='Frame-Bilder nach der AI-Verarbeitung behalten (Standard: löschen)'
-    )
-    
     args = parser.parse_args()
     
     # Pipeline starten
@@ -222,8 +215,7 @@ Beispiele:
     
     if not success:
         print(f"❌ Pipeline abgebrochen: AI-Verarbeitung fehlgeschlagen")
-        if not args.keep_frames:
-            print(f"🗑️  Frame-Verzeichnis wird beibehalten für Debugging: {frames_dir}")
+        print(f"🗑️  Frame-Verzeichnis wird beibehalten für Debugging: {frames_dir}")
         sys.exit(1)
     
     # Erfolgreiche Verarbeitung
@@ -246,18 +238,8 @@ Beispiele:
     if os.path.exists(result_json):
         print(f"📊 Ergebnisse: {result_json}")
     
-    # Aufräumen der Frame-Bilder (optional)
-    if not args.keep_frames:
-        print(f"\n🗑️  Räume Frame-Verzeichnis auf...")
-        try:
-            import shutil
-            shutil.rmtree(frames_dir)
-            print(f"✅ Frame-Verzeichnis gelöscht: {frames_dir}")
-        except Exception as e:
-            print(f"⚠️  Warnung: Konnte Frame-Verzeichnis nicht löschen: {e}")
-            print(f"   Manuell löschen: {frames_dir}")
-    else:
-        print(f"📁 Frame-Verzeichnis beibehalten: {frames_dir}")
+    # Frame-Verzeichnis wird immer beibehalten
+    print(f"📁 Frame-Verzeichnis beibehalten: {frames_dir}")
     
     print("=" * 80)
     print("🏁 Pipeline beendet")
