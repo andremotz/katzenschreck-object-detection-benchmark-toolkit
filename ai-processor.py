@@ -12,6 +12,18 @@ import cv2
 
 from transformers import Owlv2Processor, Owlv2ForObjectDetection
 
+# Exit-Codes für verschiedene Fehlerfälle
+EXIT_SUCCESS = 0
+EXIT_INPUT_NOT_FOUND = 1          # Input-Pfad existiert nicht
+EXIT_UNKNOWN_INPUT_TYPE = 2       # Unbekannter Input-Typ
+EXIT_VIDEO_NOT_FOUND = 3          # Video-Datei nicht gefunden
+EXIT_VIDEO_OPEN_FAILED = 4        # Video konnte nicht geöffnet werden
+EXIT_NO_FRAMES_FOUND = 5          # Keine Frame-Bilder gefunden
+EXIT_VIDEO_PROCESSING_FAILED = 6  # Allgemeiner Video-Verarbeitungsfehler
+EXIT_MODEL_LOADING_FAILED = 7     # AI-Modell konnte nicht geladen werden
+EXIT_JSON_WRITE_FAILED = 8        # JSON-Datei konnte nicht geschrieben werden
+EXIT_CRITICAL_ERROR = 9           # Kritischer unbekannter Fehler
+
 
 def clear_memory(device):
     """
@@ -32,6 +44,45 @@ def clear_memory(device):
         torch.mps.synchronize()
 
 
+def process_frame_with_fallback(processor, model, device, image, text_labels):
+    """
+    Versucht Frame-Verarbeitung mit robustem Error-Handling
+    
+    Args:
+        processor: Der AI-Processor
+        model: Das AI-Modell
+        device: Primäres Device (GPU/MPS)
+        image: Das zu verarbeitende Bild
+        text_labels: Die zu suchenden Labels
+    
+    Returns:
+        tuple: (success, outputs, used_device)
+    """
+    # Erster Versuch: GPU/MPS
+    try:
+        inputs = processor(text=text_labels, images=image, return_tensors="pt")
+        inputs = {k: v.to(device) for k, v in inputs.items()}
+        outputs = model(**inputs)
+        return True, outputs, device
+    except RuntimeError as e:
+        if "out of memory" in str(e).lower() or "should be the same" in str(e).lower():
+            print(f" -> GPU-Problem! Bereinige Cache und versuche erneut...")
+            clear_memory(device)
+            
+            # Zweiter Versuch: GPU/MPS nach Memory-Clearing
+            try:
+                inputs = processor(text=text_labels, images=image, return_tensors="pt")
+                inputs = {k: v.to(device) for k, v in inputs.items()}
+                outputs = model(**inputs)
+                return True, outputs, device
+            except RuntimeError as e2:
+                print(f" -> Persistentes GPU-Problem, überspringe Frame: {str(e2)[:100]}...")
+                return False, None, None
+        else:
+            print(f" -> Unbekannter GPU-Fehler, überspringe Frame: {str(e)[:100]}...")
+            return False, None, None
+
+
 def process_video_directly(video_path, processor, model, device, text_labels):
     """
     Verarbeitet ein Video direkt ohne Frame-Zwischenspeicherung
@@ -50,14 +101,14 @@ def process_video_directly(video_path, processor, model, device, text_labels):
     # Prüfen ob Video existiert
     if not os.path.exists(video_path):
         print(f"Fehler: Video nicht gefunden: {video_path}")
-        return False, None
+        sys.exit(EXIT_VIDEO_NOT_FOUND)
     
     # Video öffnen
     cap = cv2.VideoCapture(video_path)
     
     if not cap.isOpened():
         print(f"Fehler: Video konnte nicht geöffnet werden: {video_path}")
-        return False, None
+        sys.exit(EXIT_VIDEO_OPEN_FAILED)
     
     # Video-Eigenschaften
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -73,11 +124,14 @@ def process_video_directly(video_path, processor, model, device, text_labels):
     print()
     
     # JSON-Datenstruktur für Ergebnisse
+    # Relativen Pfad zum Video berechnen (nur Dateiname)
+    relative_video_path = os.path.basename(video_path)
+    
     results_data = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
             "input_type": "video",
-            "input_path": video_path,
+            "input_path": relative_video_path,
             "video_properties": {
                 "total_frames": total_frames,
                 "fps": fps,
@@ -130,29 +184,18 @@ def process_video_directly(video_path, processor, model, device, text_labels):
             
             print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{total_frames}) | Frame {processed_count-1:6d} | Restzeit: {remaining_str}", end="", flush=True)
             
-            # AI-Verarbeitung mit Memory-Error-Handling
-            try:
-                inputs = processor(text=text_labels, images=image, return_tensors="pt")
-                # Inputs auf das gleiche Device verschieben wie das Modell
-                inputs = {k: v.to(device) for k, v in inputs.items()}
-                outputs = model(**inputs)
-            except RuntimeError as e:
-                if "out of memory" in str(e).lower():
-                    print(f" -> Memory-Fehler! Bereinige Cache und versuche erneut...")
-                    clear_memory(device)
-                    # Zweiter Versuch
-                    try:
-                        inputs = processor(text=text_labels, images=image, return_tensors="pt")
-                        inputs = {k: v.to(device) for k, v in inputs.items()}
-                        outputs = model(**inputs)
-                    except RuntimeError as e2:
-                        print(f" -> Persistenter Memory-Fehler, überspringe Frame: {e2}")
-                        continue
-                else:
-                    raise e
+            # AI-Verarbeitung mit robustem Error-Handling
+            success, outputs, used_device = process_frame_with_fallback(
+                processor, model, device, image, text_labels
+            )
+            
+            if not success:
+                print(f" -> Frame-Verarbeitung fehlgeschlagen, überspringe...")
+                continue
             
             # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
-            target_sizes = torch.tensor([(image.height, image.width)]).to(device)
+            target_sizes = torch.tensor([(image.height, image.width)]).to(used_device)
+            
             # Convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
             results = processor.post_process_grounded_object_detection(
                 outputs=outputs, target_sizes=target_sizes, threshold=0.1, text_labels=text_labels
@@ -195,15 +238,29 @@ def process_video_directly(video_path, processor, model, device, text_labels):
             else:
                 print(" -> keine Detektionen")
             
-            # Memory-Management: Alle 50 Frames Memory leeren
-            if processed_count % 50 == 0:
+            # Memory-Management: Alle 10 Frames Memory leeren (aggressiver)
+            if processed_count % 10 == 0:
                 clear_memory(device)
+                
+            # Radikale Lösung: Modell alle 100 Frames neu laden bei MPS-Problemen
+            if processed_count % 100 == 0 and device.type == 'mps':
+                print(f"\n -> MPS-Wartung: Lade Modell neu für optimale Performance...")
+                try:
+                    model.cpu()  # Modell auf CPU
+                    clear_memory(device)  # GPU komplett leeren
+                    model.to(device)  # Modell zurück auf GPU
+                    clear_memory(device)  # Nochmals bereinigen
+                    print(f" -> Modell erfolgreich neu geladen")
+                except Exception as e:
+                    print(f" -> Modell-Neuladung fehlgeschlagen: {e}")
+                    pass
     
     except KeyboardInterrupt:
         print("\nVerarbeitung durch Benutzer abgebrochen")
     except Exception as e:
         print(f"\nFehler bei der Video-Verarbeitung: {e}")
-        return False, None
+        cap.release()
+        sys.exit(EXIT_VIDEO_PROCESSING_FAILED)
     finally:
         cap.release()
     
@@ -266,7 +323,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     # Validierung des Input-Pfades
     if not os.path.exists(input_path):
         print(f"Fehler: Der angegebene Pfad '{input_path}' existiert nicht.")
-        sys.exit(1)
+        sys.exit(EXIT_INPUT_NOT_FOUND)
     
     # Input-Typ erkennen
     input_type = detect_input_type(input_path)
@@ -275,11 +332,15 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         print(f"Fehler: Unbekannter Input-Typ. Unterstützte Formate:")
         print("  - Videos: .mp4, .avi, .mov, .mkv, .wmv, .flv, .webm, .m4v")
         print("  - Frame-Ordner: Ordner mit frame_*.jpg Dateien")
-        sys.exit(1)
+        sys.exit(EXIT_UNKNOWN_INPUT_TYPE)
     
     print(f"Lade AI-Modell...")
-    processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
-    model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
+    try:
+        processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
+        model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
+    except Exception as e:
+        print(f"Fehler beim Laden des AI-Modells: {e}")
+        sys.exit(EXIT_MODEL_LOADING_FAILED)
     
     # GPU-Unterstützung prüfen und aktivieren
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
@@ -300,7 +361,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         success, results_data = process_video_directly(input_path, processor, model, device, text_labels)
         if not success:
             print("Fehler bei der Video-Verarbeitung")
-            sys.exit(1)
+            sys.exit(EXIT_VIDEO_PROCESSING_FAILED)
     else:
         print(f"Erkannter Input-Typ: Frame-Sequenz")
         frames_folder = input_path
@@ -313,7 +374,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
 
         if not frame_files:
             print(f"Fehler: Keine Frame-Bilder im Ordner {frames_folder} gefunden")
-            sys.exit(1)
+            sys.exit(EXIT_NO_FRAMES_FOUND)
 
         print(f"Gefunden: {len(frame_files)} Frame-Bilder")
 
@@ -322,12 +383,16 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         print(f"Frames die verarbeitet werden: {frames_to_process}")
 
         # JSON-Datenstruktur für Ergebnisse
+        # Relative Pfade berechnen (nur Ordnername)
+        relative_input_path = os.path.basename(input_path)
+        relative_frames_folder = os.path.basename(frames_folder)
+        
         results_data = {
             "metadata": {
                 "timestamp": datetime.now().isoformat(),
                 "input_type": input_type,
-                "input_path": input_path,
-                "frames_folder": frames_folder,
+                "input_path": relative_input_path,
+                "frames_folder": relative_frames_folder,
                 "total_frames": len(frame_files),
                 "frames_to_process": frames_to_process,
                 "processed_frames": 0,
@@ -375,29 +440,18 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 
                 print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{frames_to_process}) | Frame {frame_number:6d} | Restzeit: {remaining_str}", end="", flush=True)
                 
-                # AI-Verarbeitung mit Memory-Error-Handling
-                try:
-                    inputs = processor(text=text_labels, images=image, return_tensors="pt")
-                    # Inputs auf das gleiche Device verschieben wie das Modell
-                    inputs = {k: v.to(device) for k, v in inputs.items()}
-                    outputs = model(**inputs)
-                except RuntimeError as e:
-                    if "out of memory" in str(e).lower():
-                        print(f" -> Memory-Fehler! Bereinige Cache und versuche erneut...")
-                        clear_memory(device)
-                        # Zweiter Versuch
-                        try:
-                            inputs = processor(text=text_labels, images=image, return_tensors="pt")
-                            inputs = {k: v.to(device) for k, v in inputs.items()}
-                            outputs = model(**inputs)
-                        except RuntimeError as e2:
-                            print(f" -> Persistenter Memory-Fehler, überspringe Frame: {e2}")
-                            continue
-                    else:
-                        raise e
+                # AI-Verarbeitung mit robustem Error-Handling
+                success, outputs, used_device = process_frame_with_fallback(
+                    processor, model, device, image, text_labels
+                )
+                
+                if not success:
+                    print(f" -> Frame-Verarbeitung fehlgeschlagen, überspringe...")
+                    continue
                 
                 # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
-                target_sizes = torch.tensor([(image.height, image.width)]).to(device)
+                target_sizes = torch.tensor([(image.height, image.width)]).to(used_device)
+                
                 # Convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
                 results = processor.post_process_grounded_object_detection(
                     outputs=outputs, target_sizes=target_sizes, threshold=0.1, text_labels=text_labels
@@ -408,10 +462,13 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 boxes, scores, text_labels_result = result["boxes"], result["scores"], result["text_labels"]
                 
                 # Frame-Daten zu JSON hinzufügen
+                # Relativen Pfad zum Frame berechnen (relativ zum Eingabeordner)
+                relative_frame_path = os.path.relpath(frame_path, os.path.dirname(input_path))
+                
                 frame_data = {
                     "frame_number": frame_number,
                     "frame_filename": frame_filename,
-                    "frame_path": frame_path,
+                    "frame_path": relative_frame_path,
                     "image_size": {
                         "width": image.width,
                         "height": image.height
@@ -441,9 +498,22 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 else:
                     print(" -> keine Detektionen")
                 
-                # Memory-Management: Alle 50 Frames Memory leeren
-                if processed_count % 50 == 0:
+                # Memory-Management: Alle 10 Frames Memory leeren (aggressiver)
+                if processed_count % 10 == 0:
                     clear_memory(device)
+                    
+                # Radikale Lösung: Modell alle 100 Frames neu laden bei MPS-Problemen
+                if processed_count % 100 == 0 and device.type == 'mps':
+                    print(f"\n -> MPS-Wartung: Lade Modell neu für optimale Performance...")
+                    try:
+                        model.cpu()  # Modell auf CPU
+                        clear_memory(device)  # GPU komplett leeren
+                        model.to(device)  # Modell zurück auf GPU
+                        clear_memory(device)  # Nochmals bereinigen
+                        print(f" -> Modell erfolgreich neu geladen")
+                    except Exception as e:
+                        print(f" -> Modell-Neuladung fehlgeschlagen: {e}")
+                        pass
             
             except Exception as e:
                 print(f"Fehler beim Verarbeiten von {frame_path}: {e}")
@@ -505,8 +575,17 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         # Fallback: Ergebnisse in der Konsole ausgeben
         print("\nFallback - Ergebnisse in der Konsole:")
         print(json.dumps(results_data, indent=2, ensure_ascii=False))
+        sys.exit(EXIT_JSON_WRITE_FAILED)
     
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+        sys.exit(EXIT_SUCCESS)
+    except KeyboardInterrupt:
+        print("\nVerarbeitung durch Benutzer abgebrochen")
+        sys.exit(EXIT_SUCCESS)  # Benutzer-Abbruch ist kein Fehler
+    except Exception as e:
+        print(f"\nKritischer Fehler: {e}")
+        sys.exit(EXIT_CRITICAL_ERROR)

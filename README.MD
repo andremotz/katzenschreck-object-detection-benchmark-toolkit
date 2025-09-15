@@ -183,3 +183,150 @@ Für die technische Umsetzung:
 4. **Ergebnis-Aggregation**: Sammlung und Zusammenführung aller JSON-Ausgabedateien
 
 Das System ist für große Videodatenmengen optimiert und bietet eine vollständig automatisierte Pipeline von der manuell vorselektierten Video-Eingabe bis zur strukturierten Erkennungsausgabe.
+
+## Detektions-Annotation Script
+
+### Übersicht
+
+Das `annotate_detections.py` Script liest JSON-Detektionsergebnisse von `ai-processor.py` ein und zeichnet Bounding-Boxes auf die entsprechenden Frame-Bilder.
+
+### Funktionen
+
+#### Hauptfunktionen:
+- ✅ **JSON-Parser**: Lädt Detektionsergebnisse aus JSON-Dateien
+- ✅ **Bounding-Box Zeichnung**: Zeichnet farbige Bounding-Boxes um erkannte Objekte
+- ✅ **Label-Anzeige**: Zeigt Label und Confidence-Score für jede Detektion
+- ✅ **Batch-Verarbeitung**: Verarbeitet alle detektierten Frames automatisch
+- ✅ **Fortschrittsanzeige**: Zeigt Verarbeitungsfortschritt in Echtzeit
+- ✅ **Übersichtsbild**: Erstellt automatisch ein Grid der besten Detektionen
+
+#### Farbkodierung:
+- 🟠 **Orange**: Katzen (`cat`)
+- 🟢 **Grün**: Hunde (`dog`)
+- 🔴 **Rot**: Personen (`person`)
+- 🔵 **Blau**: Vögel (`bird`)
+- 🟡 **Gelb**: Andere/Unbekannte Labels
+
+### Verwendung
+
+#### Grundlegende Verwendung:
+```bash
+python annotate_detections.py detection_results/Camera_Teich-20250907-155316-1757253196613-7_frames_detection_results.json
+```
+
+#### Mit benutzerdefiniertem Ausgabeordner:
+```bash
+python annotate_detections.py detection_results.json --output-dir meine_annotationen
+```
+
+#### Mit OpenCV-Rendering (Alternative zu PIL):
+```bash
+python annotate_detections.py detection_results.json --opencv
+```
+
+#### Ohne Übersichtsbild:
+```bash
+python annotate_detections.py detection_results.json --no-summary
+```
+
+### Parameter
+
+| Parameter | Beschreibung | Standard |
+|-----------|--------------|----------|
+| `json_file` | Pfad zur JSON-Datei mit Detektionsergebnissen | (erforderlich) |
+| `--output-dir`, `-o` | Ausgabeordner für annotierte Bilder | `annotated_<json_basename>` |
+| `--opencv` | Verwendet OpenCV statt PIL für Rendering | PIL |
+| `--no-summary` | Erstellt kein Übersichtsbild | Übersichtsbild erstellen |
+
+### Ausgabe
+
+Das Script erstellt:
+
+1. **Annotierte Einzelbilder**: Jeder Frame mit Detektionen wird mit Bounding-Boxes versehen
+   - Format: `annotated_frame_XXXXXX.jpg`
+   - Enthält alle Detektionen mit Label und Confidence
+
+2. **Übersichtsbild**: `detection_summary.jpg`
+   - Grid-Layout der besten Detektionen (höchste Confidence)
+   - Bis zu 9 Bilder in 3x3 Anordnung
+   - Thumbnail-Größe für schnelle Übersicht
+
+### Beispiel-Workflow
+
+1. **Video analysieren** (mit ai-processor.py):
+   ```bash
+   python ai-processor.py mein_video.mp4
+   # Erstellt: detection_results/mein_video_detection_results.json
+   ```
+
+2. **Detektionen annotieren**:
+   ```bash
+   python annotate_detections.py detection_results/mein_video_detection_results.json
+   # Erstellt: annotated_mein_video_detection_results/
+   ```
+
+3. **Ergebnisse betrachten**:
+   - Einzelne Frames: `annotated_mein_video_detection_results/annotated_frame_*.jpg`
+   - Übersicht: `annotated_mein_video_detection_results/detection_summary.jpg`
+
+### Technische Details
+
+#### Unterstützte Formate:
+- **Input**: JSON-Dateien von ai-processor.py
+- **Output**: JPEG-Bilder mit 95% Qualität
+- **Frame-Formate**: Alle von PIL/OpenCV unterstützten Formate
+
+#### Performance:
+- **PIL-Modus**: Bessere Qualität, etwas langsamer
+- **OpenCV-Modus**: Schneller, für große Mengen geeignet
+- **Speicher**: Effizient, lädt nur jeweils ein Bild
+
+#### Fehlerbehandlung:
+- Fehlende Frame-Bilder werden übersprungen
+- Korrupte JSON-Dateien werden erkannt
+- Detaillierte Fehlermeldungen für Debugging
+
+### Anpassungen
+
+Das Script kann leicht angepasst werden:
+
+- **Farben ändern**: Bearbeiten Sie die `get_label_color()` Funktion
+- **Text-Stil**: Anpassen von `font_size`, `box_thickness` etc.
+- **Neue Labels**: Erweitern Sie die `color_map` in `get_label_color()`
+- **Output-Format**: Ändern Sie `quality` Parameter beim Speichern
+
+### Fehlerbehebung
+
+#### Häufige Probleme:
+
+1. **"Frame-Bild nicht gefunden"**:
+   - Frame-Pfade in JSON stimmen nicht mit tatsächlichen Dateien überein
+   - Frame-Bilder wurden verschoben oder gelöscht
+
+2. **"Fehler beim Parsen der JSON-Datei"**:
+   - JSON-Datei ist beschädigt oder unvollständig
+   - Verwenden Sie einen JSON-Validator
+
+3. **Schrift-Probleme**:
+   - Script verwendet automatisch verfügbare System-Schriften
+   - Falls nötig, installieren Sie zusätzliche Schriftarten
+
+#### Debug-Modus:
+Fügen Sie `print()` Statements hinzu, um den Verarbeitungsfortschritt zu verfolgen.
+
+### Ergebnis-Beispiel
+
+Nach der Ausführung erhalten Sie:
+```
+annotated_Camera_Teich-20250907-155316-1757253196613-7_frames_detection_results/
+├── annotated_frame_000390.jpg    # Hund mit grüner Bounding-Box
+├── annotated_frame_004710.jpg    # 3 Hunde-Detektionen
+├── annotated_frame_004740.jpg    # 4 Katzen-Detektionen (orange)
+├── ...
+└── detection_summary.jpg         # Übersicht der besten Detektionen
+```
+
+Jedes Bild zeigt die ursprünglichen Frames mit:
+- Farbige Bounding-Boxes um erkannte Objekte
+- Label und Confidence-Score über jeder Box
+- Optimierte Lesbarkeit durch Hintergrund-Boxen
