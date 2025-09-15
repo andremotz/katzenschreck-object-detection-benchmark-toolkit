@@ -21,11 +21,43 @@ Das Projekt nutzt einen zweistufigen Ansatz zur effizienten Verarbeitung von Vid
 
 ### 2. KI-basierte Objekterkennung (`ai-processor.py`)
 
-#### Modell und Setup
-- **Verwendetes Modell**: `google/owlv2-base-patch16-ensemble`
+#### Verfügbare AI-Modelle
+Das Script unterstützt zwei verschiedene Objekterkennungsmodelle:
+
+**OWLv2 (Standard)**
+- **Modell**: `google/owlv2-base-patch16-ensemble`
 - **Framework**: Hugging Face Transformers mit PyTorch
-- **Erkennungskategorien**: Katzen und Hunde
-- **Verarbeitungsoptimierung**: Analyse nur jeden 30. Frames für bessere Performance
+- **Erkennungskategorien**: Nur Katzen (text-basierte Erkennung)
+- **Vorteile**: Flexiblere Klassendefinition, bessere Text-basierte Objekterkennung
+- **Nachteile**: Langsamere Verarbeitung
+
+**YOLO v11/v12 (Optional)**
+- **Modelle**: `yolo11n.pt`, `yolo11s.pt`, `yolo11m.pt`, `yolo11l.pt`, `yolo11x.pt`
+- **Framework**: Ultralytics YOLO
+- **Erkennungskategorien**: Nur Katzen (aus 80 COCO-Klassen)
+- **Vorteile**: Deutlich schnellere Verarbeitung, bessere Performance
+- **Nachteile**: Feste Klassendefinition
+
+#### Modell-Auswahl
+```bash
+# Standard OWLv2 verwenden
+python ai-processor.py /pfad/zum/video.mp4
+
+# YOLO verwenden (schneller)
+python ai-processor.py --model yolo /pfad/zum/video.mp4
+
+# Spezifisches YOLO-Modell verwenden
+python ai-processor.py --model yolo --yolo-model yolo11l.pt /pfad/zum/video.mp4
+```
+
+#### YOLO-Modell Übersicht
+| Modell | Größe | Geschwindigkeit | Genauigkeit | Verwendung |
+|--------|-------|----------------|-------------|------------|
+| `yolo11n.pt` | Nano | Sehr schnell | Basis | Schnelle Tests |
+| `yolo11s.pt` | Small | Schnell | Gut | Produktive Nutzung |
+| `yolo11m.pt` | Medium | Mittel | Sehr gut | Ausgewogene Lösung |
+| `yolo11l.pt` | Large | Langsam | Ausgezeichnet | Hohe Genauigkeit |
+| `yolo11x.pt` | Extra Large | Sehr langsam | Beste | Maximale Präzision |
 
 #### Erkennungsprozess
 1. **Frame-Laden**: Sequenzielle Verarbeitung der extrahierten Bildsequenz
@@ -35,9 +67,22 @@ Das Projekt nutzt einen zweistufigen Ansatz zur effizienten Verarbeitung von Vid
 
 #### Ausgabe und Dokumentation
 - **JSON-Export**: Strukturierte Speicherung aller Erkennungsergebnisse
-- **Metadaten**: Verarbeitungsstatistiken und Konfigurationsparameter
+- **Metadaten**: Verarbeitungsstatistiken und Konfigurationsparameter (inklusive verwendetes Modell)
 - **Detaillierte Logs**: Fortschrittsanzeige mit Zeitschätzungen
 - **Performance-Metriken**: Detektionsrate und Verarbeitungsgeschwindigkeit
+- **Modell-spezifische Ordner**: Getrennte Speicherung je nach verwendetem AI-Modell
+
+#### Ordnerstruktur der Ergebnisse
+```
+/pfad/zum/video/
+├── video.mp4
+├── detection_results-owlv2/     # OWLv2 Ergebnisse
+│   └── video_detection_results.json
+└── detection_results-yolo/      # YOLO Ergebnisse
+    └── video_detection_results.json
+```
+
+Dies ermöglicht parallele Verarbeitung mit beiden Modellen und direkten Vergleich der Ergebnisse.
 
 ### 3. Datenstruktur der Ergebnisse
 
@@ -48,6 +93,7 @@ Die generierten JSON-Dateien enthalten:
 
 ### 4. Systemanforderungen
 
+#### Basis-Requirements (für OWLv2)
 ```
 transformers>=4.30.0
 torch>=2.0.0
@@ -55,6 +101,17 @@ torchvision>=0.15.0
 Pillow>=9.0.0
 scipy
 opencv-python>=4.8.0
+```
+
+#### Zusätzliche Requirements für YOLO-Unterstützung
+```
+ultralytics>=8.0.0
+numpy>=1.21.0
+```
+
+**Installation mit YOLO-Unterstützung:**
+```bash
+pip install -r requirements.txt
 ```
 
 ## Installation
@@ -163,8 +220,14 @@ Der komplette Workflow des Katzendetector-Systems folgt einem strukturierten 6-S
 - **Ausführungsort**: Starker Rechner mit GPU-Unterstützung
 - **Prozess**:
   - Verarbeitung der generierten Bildsequenzen
-  - OWLv2-Modell analysiert jeden 30. Frame
-  - Erzeugung detaillierter JSON-Erkennungsberichte
+  - Wahlweise OWLv2 oder YOLO für Objekterkennung
+  - Erzeugung detaillierter JSON-Erkennungsberichte in modell-spezifischen Ordnern
+
+#### Performance-Empfehlungen:
+- **Große Datenmengen**: YOLO verwenden (`--model yolo`) für deutlich schnellere Verarbeitung
+- **Höchste Genauigkeit**: OWLv2 für präzisere text-basierte Katzenerkennung
+- **GPU-Nutzung**: Beide Modelle profitieren von CUDA/MPS-Unterstützung
+- **Modell-Vergleich**: Parallele Verarbeitung mit beiden Modellen für Qualitätsvergleich
 
 ### 6. Zentrale Zusammenführung der Ergebnisse
 - **Aktion**: Alle generierten JSON-Files werden an zentraler Stelle gesammelt
@@ -179,10 +242,21 @@ Für die technische Umsetzung:
 
 1. **Video-Vorbereitung**: Platzierung der selektierten MP4-Dateien im Fileshare-Verzeichnis
 2. **Batch-Konvertierung**: Ausführung von `convert_video_batch.py` für automatische Bildsequenz-Extraktion
-3. **KI-Analyse**: Anpassung der Pfade in `ai-processor.py` und Ausführung der Objekterkennung auf leistungsstarker Hardware
-4. **Ergebnis-Aggregation**: Sammlung und Zusammenführung aller JSON-Ausgabedateien
+3. **KI-Analyse**: Ausführung der Objekterkennung auf leistungsstarker Hardware
+   ```bash
+   # Schnelle Verarbeitung mit YOLO
+   python ai-processor.py --model yolo /pfad/zu/video_frames/
+   
+   # Präzise Verarbeitung mit OWLv2
+   python ai-processor.py --model owlv2 /pfad/zu/video_frames/
+   
+   # Beide Modelle für Vergleich
+   python ai-processor.py --model owlv2 /pfad/zu/video_frames/
+   python ai-processor.py --model yolo /pfad/zu/video_frames/
+   ```
+4. **Ergebnis-Aggregation**: Sammlung und Zusammenführung aller JSON-Ausgabedateien aus modell-spezifischen Ordnern
 
-Das System ist für große Videodatenmengen optimiert und bietet eine vollständig automatisierte Pipeline von der manuell vorselektierten Video-Eingabe bis zur strukturierten Erkennungsausgabe.
+Das System ist für große Videodatenmengen optimiert und bietet eine vollständig automatisierte Pipeline von der manuell vorselektierten Video-Eingabe bis zur strukturierten Erkennungsausgabe. Die YOLO-Integration ermöglicht deutlich schnellere Verarbeitung großer Datenmengen bei weiterhin hoher Erkennungsqualität.
 
 ## Detektions-Annotation Script
 

@@ -9,8 +9,18 @@ from pathlib import Path
 from PIL import Image
 import torch
 import cv2
+import numpy as np
 
+# OWLv2 imports
 from transformers import Owlv2Processor, Owlv2ForObjectDetection
+
+# YOLO imports
+try:
+    from ultralytics import YOLO
+    YOLO_AVAILABLE = True
+except ImportError:
+    YOLO_AVAILABLE = False
+    print("Warnung: ultralytics nicht installiert. YOLO-Modelle nicht verfügbar.")
 
 # Exit-Codes für verschiedene Fehlerfälle
 EXIT_SUCCESS = 0
@@ -44,9 +54,9 @@ def clear_memory(device):
         torch.mps.synchronize()
 
 
-def process_frame_with_fallback(processor, model, device, image, text_labels):
+def process_frame_with_fallback_owlv2(processor, model, device, image, text_labels):
     """
-    Versucht Frame-Verarbeitung mit robustem Error-Handling
+    Versucht Frame-Verarbeitung mit OWLv2 und robustem Error-Handling
     
     Args:
         processor: Der AI-Processor
@@ -83,7 +93,63 @@ def process_frame_with_fallback(processor, model, device, image, text_labels):
             return False, None, None
 
 
-def process_video_directly(video_path, processor, model, device, text_labels):
+def process_frame_with_fallback_yolo(model, device, image, target_classes):
+    """
+    Versucht Frame-Verarbeitung mit YOLO und robustem Error-Handling
+    
+    Args:
+        model: Das YOLO-Modell
+        device: Primäres Device (GPU/MPS/CPU)
+        image: Das zu verarbeitende Bild (PIL Image)
+        target_classes: Liste der zu erkennenden Klassen (z.B. ['cat', 'dog'])
+    
+    Returns:
+        tuple: (success, detections, used_device) 
+               detections: Liste von Dicts mit 'label', 'confidence', 'bounding_box'
+    """
+    try:
+        # PIL Image zu numpy array für YOLO
+        img_array = np.array(image)
+        
+        # YOLO Inference
+        results = model(img_array, device=device.type if hasattr(device, 'type') else str(device))
+        
+        detections = []
+        
+        for result in results:
+            boxes = result.boxes
+            if boxes is not None:
+                for box in boxes:
+                    # YOLO Klassen-ID zu Name konvertieren
+                    class_id = int(box.cls.cpu().numpy())
+                    class_name = model.names[class_id]
+                    confidence = float(box.conf.cpu().numpy())
+                    
+                    # Nur relevante Klassen berücksichtigen
+                    if class_name in target_classes and confidence > 0.1:
+                        # Bounding Box Koordinaten (x1, y1, x2, y2)
+                        coords = box.xyxy.cpu().numpy()[0]
+                        
+                        detection = {
+                            'label': class_name,
+                            'confidence': round(confidence, 3),
+                            'bounding_box': {
+                                'xmin': round(float(coords[0]), 2),
+                                'ymin': round(float(coords[1]), 2),
+                                'xmax': round(float(coords[2]), 2),
+                                'ymax': round(float(coords[3]), 2)
+                            }
+                        }
+                        detections.append(detection)
+        
+        return True, detections, device
+        
+    except Exception as e:
+        print(f" -> YOLO-Fehler, überspringe Frame: {str(e)[:100]}...")
+        return False, [], None
+
+
+def process_video_directly(video_path, processor, model, device, text_labels, model_type='owlv2'):
     """
     Verarbeitet ein Video direkt ohne Frame-Zwischenspeicherung
     
@@ -142,6 +208,7 @@ def process_video_directly(video_path, processor, model, device, text_labels):
             "frames_with_detections": 0,
             "detection_threshold": 0.1,
             "text_labels": text_labels[0],
+            "model_type": model_type,
             "processing_method": "direct_video_stream"
         },
         "detections": []
@@ -184,66 +251,96 @@ def process_video_directly(video_path, processor, model, device, text_labels):
             
             print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{total_frames}) | Frame {processed_count-1:6d} | Restzeit: {remaining_str}", end="", flush=True)
             
-            # AI-Verarbeitung mit robustem Error-Handling
-            success, outputs, used_device = process_frame_with_fallback(
-                processor, model, device, image, text_labels
-            )
-            
-            if not success:
-                print(f" -> Frame-Verarbeitung fehlgeschlagen, überspringe...")
-                continue
-            
-            # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
-            target_sizes = torch.tensor([(image.height, image.width)]).to(used_device)
-            
-            # Convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
-            results = processor.post_process_grounded_object_detection(
-                outputs=outputs, target_sizes=target_sizes, threshold=0.1, text_labels=text_labels
-            )
-            
-            # Retrieve predictions for the first image for the corresponding text queries
-            result = results[0]
-            boxes, scores, text_labels_result = result["boxes"], result["scores"], result["text_labels"]
-            
-            # Frame-Daten zu JSON hinzufügen
-            frame_data = {
-                "frame_number": processed_count - 1,
-                "frame_timestamp": (processed_count - 1) / fps if fps > 0 else 0,
-                "image_size": {
-                    "width": image.width,
-                    "height": image.height
-                },
-                "detections": []
-            }
-            
-            # Detektionen hinzufügen
-            for box, score, text_label in zip(boxes, scores, text_labels_result):
-                detection = {
-                    "label": text_label,
-                    "confidence": round(score.item(), 3),
-                    "bounding_box": {
-                        "xmin": round(box[0].item(), 2),
-                        "ymin": round(box[1].item(), 2),
-                        "xmax": round(box[2].item(), 2),
-                        "ymax": round(box[3].item(), 2)
-                    }
+            # AI-Verarbeitung - unterschiedlich je nach Modell
+            if model_type == 'yolo':
+                target_classes = text_labels[0] if isinstance(text_labels[0], list) else text_labels
+                success, detections, used_device = process_frame_with_fallback_yolo(
+                    model, device, image, target_classes
+                )
+                
+                if not success:
+                    print(f" -> Frame-Verarbeitung fehlgeschlagen, überspringe...")
+                    continue
+                
+                # Frame-Daten zu JSON hinzufügen
+                frame_data = {
+                    "frame_number": processed_count - 1,
+                    "frame_timestamp": (processed_count - 1) / fps if fps > 0 else 0,
+                    "image_size": {
+                        "width": image.width,
+                        "height": image.height
+                    },
+                    "detections": detections
                 }
-                frame_data["detections"].append(detection)
-            
-            # Nur zu Ergebnissen hinzufügen wenn Detektionen gefunden wurden
-            if len(boxes) > 0:
-                results_data["detections"].append(frame_data)
-                results_data["metadata"]["frames_with_detections"] += 1
-                print(f" -> {len(boxes)} Detektion(en)!")
-            else:
-                print(" -> keine Detektionen")
+                
+                # Nur zu Ergebnissen hinzufügen wenn Detektionen gefunden wurden
+                if len(detections) > 0:
+                    results_data["detections"].append(frame_data)
+                    results_data["metadata"]["frames_with_detections"] += 1
+                    print(f" -> {len(detections)} Detektion(en)!")
+                else:
+                    print(" -> keine Detektionen")
+                    
+            else:  # OWLv2
+                success, outputs, used_device = process_frame_with_fallback_owlv2(
+                    processor, model, device, image, text_labels
+                )
+                
+                if not success:
+                    print(f" -> Frame-Verarbeitung fehlgeschlagen, überspringe...")
+                    continue
+                
+                # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
+                target_sizes = torch.tensor([(image.height, image.width)]).to(used_device)
+                
+                # Convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
+                results = processor.post_process_grounded_object_detection(
+                    outputs=outputs, target_sizes=target_sizes, threshold=0.1, text_labels=text_labels
+                )
+                
+                # Retrieve predictions for the first image for the corresponding text queries
+                result = results[0]
+                boxes, scores, text_labels_result = result["boxes"], result["scores"], result["text_labels"]
+                
+                # Frame-Daten zu JSON hinzufügen
+                frame_data = {
+                    "frame_number": processed_count - 1,
+                    "frame_timestamp": (processed_count - 1) / fps if fps > 0 else 0,
+                    "image_size": {
+                        "width": image.width,
+                        "height": image.height
+                    },
+                    "detections": []
+                }
+                
+                # Detektionen hinzufügen
+                for box, score, text_label in zip(boxes, scores, text_labels_result):
+                    detection = {
+                        "label": text_label,
+                        "confidence": round(score.item(), 3),
+                        "bounding_box": {
+                            "xmin": round(box[0].item(), 2),
+                            "ymin": round(box[1].item(), 2),
+                            "xmax": round(box[2].item(), 2),
+                            "ymax": round(box[3].item(), 2)
+                        }
+                    }
+                    frame_data["detections"].append(detection)
+                
+                # Nur zu Ergebnissen hinzufügen wenn Detektionen gefunden wurden
+                if len(boxes) > 0:
+                    results_data["detections"].append(frame_data)
+                    results_data["metadata"]["frames_with_detections"] += 1
+                    print(f" -> {len(boxes)} Detektion(en)!")
+                else:
+                    print(" -> keine Detektionen")
             
             # Memory-Management: Alle 10 Frames Memory leeren (aggressiver)
             if processed_count % 10 == 0:
                 clear_memory(device)
                 
-            # Radikale Lösung: Modell alle 100 Frames neu laden bei MPS-Problemen
-            if processed_count % 100 == 0 and device.type == 'mps':
+            # Radikale Lösung: Modell alle 100 Frames neu laden bei MPS-Problemen (nur OWLv2)
+            if processed_count % 100 == 0 and device.type == 'mps' and model_type != 'yolo':
                 print(f"\n -> MPS-Wartung: Lade Modell neu für optimale Performance...")
                 try:
                     model.cpu()  # Modell auf CPU
@@ -316,9 +413,22 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         'input_path',
         help='Pfad zum Video (mp4, avi, mov, etc.) oder Ordner mit Frame-Bildern (frame_*.jpg)'
     )
+    parser.add_argument(
+        '--model',
+        choices=['owlv2', 'yolo'],
+        default='owlv2',
+        help='Zu verwendendes AI-Modell: owlv2 (default) oder yolo'
+    )
+    parser.add_argument(
+        '--yolo-model',
+        default='yolo11n.pt',
+        help='YOLO-Modell-Datei (default: yolo11n.pt). Kann auch yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt sein'
+    )
     
     args = parser.parse_args()
     input_path = args.input_path
+    model_type = args.model
+    yolo_model_name = args.yolo_model
     
     # Validierung des Input-Pfades
     if not os.path.exists(input_path):
@@ -334,31 +444,53 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         print("  - Frame-Ordner: Ordner mit frame_*.jpg Dateien")
         sys.exit(EXIT_UNKNOWN_INPUT_TYPE)
     
-    print(f"Lade AI-Modell...")
-    try:
-        processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
-        model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
-    except Exception as e:
-        print(f"Fehler beim Laden des AI-Modells: {e}")
-        sys.exit(EXIT_MODEL_LOADING_FAILED)
+    # Modell laden je nach gewähltem Typ
+    processor = None
+    model = None
+    
+    if model_type == 'yolo':
+        if not YOLO_AVAILABLE:
+            print("Fehler: YOLO wurde gewählt, aber ultralytics ist nicht installiert.")
+            print("Installiere mit: pip install ultralytics")
+            sys.exit(EXIT_MODEL_LOADING_FAILED)
+        
+        print(f"Lade YOLO-Modell: {yolo_model_name}...")
+        try:
+            model = YOLO(yolo_model_name)
+            print(f"YOLO-Modell erfolgreich geladen")
+        except Exception as e:
+            print(f"Fehler beim Laden des YOLO-Modells: {e}")
+            sys.exit(EXIT_MODEL_LOADING_FAILED)
+    else:
+        print(f"Lade OWLv2-Modell...")
+        try:
+            processor = Owlv2Processor.from_pretrained("google/owlv2-base-patch16-ensemble")
+            model = Owlv2ForObjectDetection.from_pretrained("google/owlv2-base-patch16-ensemble")
+            print(f"OWLv2-Modell erfolgreich geladen")
+        except Exception as e:
+            print(f"Fehler beim Laden des OWLv2-Modells: {e}")
+            sys.exit(EXIT_MODEL_LOADING_FAILED)
     
     # GPU-Unterstützung prüfen und aktivieren
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
     print(f"Verwendetes Device: {device}")
-    model = model.to(device)
+    
+    # Nur bei OWLv2 das Modell explizit auf Device verschieben
+    if model_type != 'yolo':
+        model = model.to(device)
     
     # Memory bereinigen vor dem Start
     clear_memory(device)
     print(f"Memory-Cache geleert für optimale Performance")
     
-    text_labels = [["cat", "dog"]]
+    text_labels = [["cat"]]
     
     # Je nach Input-Typ unterschiedlich verarbeiten
     if input_type == 'video':
         print(f"Erkannter Input-Typ: Video")
         print(f"Verarbeite Video direkt ohne Frame-Zwischenspeicherung...")
         
-        success, results_data = process_video_directly(input_path, processor, model, device, text_labels)
+        success, results_data = process_video_directly(input_path, processor, model, device, text_labels, model_type)
         if not success:
             print("Fehler bei der Video-Verarbeitung")
             sys.exit(EXIT_VIDEO_PROCESSING_FAILED)
@@ -399,6 +531,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 "frames_with_detections": 0,
                 "detection_threshold": 0.1,
                 "text_labels": text_labels[0],
+                "model_type": model_type,
                 "processing_method": "frame_sequence"
             },
             "detections": []
@@ -440,70 +573,104 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 
                 print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{frames_to_process}) | Frame {frame_number:6d} | Restzeit: {remaining_str}", end="", flush=True)
                 
-                # AI-Verarbeitung mit robustem Error-Handling
-                success, outputs, used_device = process_frame_with_fallback(
-                    processor, model, device, image, text_labels
-                )
-                
-                if not success:
-                    print(f" -> Frame-Verarbeitung fehlgeschlagen, überspringe...")
-                    continue
-                
-                # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
-                target_sizes = torch.tensor([(image.height, image.width)]).to(used_device)
-                
-                # Convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
-                results = processor.post_process_grounded_object_detection(
-                    outputs=outputs, target_sizes=target_sizes, threshold=0.1, text_labels=text_labels
-                )
-                
-                # Retrieve predictions for the first image for the corresponding text queries
-                result = results[0]
-                boxes, scores, text_labels_result = result["boxes"], result["scores"], result["text_labels"]
-                
-                # Frame-Daten zu JSON hinzufügen
-                # Relativen Pfad zum Frame berechnen (relativ zum Eingabeordner)
-                relative_frame_path = os.path.relpath(frame_path, os.path.dirname(input_path))
-                
-                frame_data = {
-                    "frame_number": frame_number,
-                    "frame_filename": frame_filename,
-                    "frame_path": relative_frame_path,
-                    "image_size": {
-                        "width": image.width,
-                        "height": image.height
-                    },
-                    "detections": []
-                }
-                
-                # Detektionen hinzufügen
-                for box, score, text_label in zip(boxes, scores, text_labels_result):
-                    detection = {
-                        "label": text_label,
-                        "confidence": round(score.item(), 3),
-                        "bounding_box": {
-                            "xmin": round(box[0].item(), 2),
-                            "ymin": round(box[1].item(), 2),
-                            "xmax": round(box[2].item(), 2),
-                            "ymax": round(box[3].item(), 2)
-                        }
+                # AI-Verarbeitung - unterschiedlich je nach Modell
+                if model_type == 'yolo':
+                    target_classes = text_labels[0] if isinstance(text_labels[0], list) else text_labels
+                    success, detections, used_device = process_frame_with_fallback_yolo(
+                        model, device, image, target_classes
+                    )
+                    
+                    if not success:
+                        print(f" -> Frame-Verarbeitung fehlgeschlagen, überspringe...")
+                        continue
+                    
+                    # Frame-Daten zu JSON hinzufügen
+                    # Relativen Pfad zum Frame berechnen (relativ zum Eingabeordner)
+                    relative_frame_path = os.path.relpath(frame_path, os.path.dirname(input_path))
+                    
+                    frame_data = {
+                        "frame_number": frame_number,
+                        "frame_filename": frame_filename,
+                        "frame_path": relative_frame_path,
+                        "image_size": {
+                            "width": image.width,
+                            "height": image.height
+                        },
+                        "detections": detections
                     }
-                    frame_data["detections"].append(detection)
-                
-                # Nur zu Ergebnissen hinzufügen wenn Detektionen gefunden wurden
-                if len(boxes) > 0:
-                    results_data["detections"].append(frame_data)
-                    results_data["metadata"]["frames_with_detections"] += 1
-                    print(f" -> {len(boxes)} Detektion(en)!")
-                else:
-                    print(" -> keine Detektionen")
+                    
+                    # Nur zu Ergebnissen hinzufügen wenn Detektionen gefunden wurden
+                    if len(detections) > 0:
+                        results_data["detections"].append(frame_data)
+                        results_data["metadata"]["frames_with_detections"] += 1
+                        print(f" -> {len(detections)} Detektion(en)!")
+                    else:
+                        print(" -> keine Detektionen")
+                        
+                else:  # OWLv2
+                    success, outputs, used_device = process_frame_with_fallback_owlv2(
+                        processor, model, device, image, text_labels
+                    )
+                    
+                    if not success:
+                        print(f" -> Frame-Verarbeitung fehlgeschlagen, überspringe...")
+                        continue
+                    
+                    # Target image sizes (height, width) to rescale box predictions [batch_size, 2]
+                    target_sizes = torch.tensor([(image.height, image.width)]).to(used_device)
+                    
+                    # Convert outputs (bounding boxes and class logits) to Pascal VOC format (xmin, ymin, xmax, ymax)
+                    results = processor.post_process_grounded_object_detection(
+                        outputs=outputs, target_sizes=target_sizes, threshold=0.1, text_labels=text_labels
+                    )
+                    
+                    # Retrieve predictions for the first image for the corresponding text queries
+                    result = results[0]
+                    boxes, scores, text_labels_result = result["boxes"], result["scores"], result["text_labels"]
+                    
+                    # Frame-Daten zu JSON hinzufügen
+                    # Relativen Pfad zum Frame berechnen (relativ zum Eingabeordner)
+                    relative_frame_path = os.path.relpath(frame_path, os.path.dirname(input_path))
+                    
+                    frame_data = {
+                        "frame_number": frame_number,
+                        "frame_filename": frame_filename,
+                        "frame_path": relative_frame_path,
+                        "image_size": {
+                            "width": image.width,
+                            "height": image.height
+                        },
+                        "detections": []
+                    }
+                    
+                    # Detektionen hinzufügen
+                    for box, score, text_label in zip(boxes, scores, text_labels_result):
+                        detection = {
+                            "label": text_label,
+                            "confidence": round(score.item(), 3),
+                            "bounding_box": {
+                                "xmin": round(box[0].item(), 2),
+                                "ymin": round(box[1].item(), 2),
+                                "xmax": round(box[2].item(), 2),
+                                "ymax": round(box[3].item(), 2)
+                            }
+                        }
+                        frame_data["detections"].append(detection)
+                    
+                    # Nur zu Ergebnissen hinzufügen wenn Detektionen gefunden wurden
+                    if len(boxes) > 0:
+                        results_data["detections"].append(frame_data)
+                        results_data["metadata"]["frames_with_detections"] += 1
+                        print(f" -> {len(boxes)} Detektion(en)!")
+                    else:
+                        print(" -> keine Detektionen")
                 
                 # Memory-Management: Alle 10 Frames Memory leeren (aggressiver)
                 if processed_count % 10 == 0:
                     clear_memory(device)
                     
-                # Radikale Lösung: Modell alle 100 Frames neu laden bei MPS-Problemen
-                if processed_count % 100 == 0 and device.type == 'mps':
+                # Radikale Lösung: Modell alle 100 Frames neu laden bei MPS-Problemen (nur OWLv2)
+                if processed_count % 100 == 0 and device.type == 'mps' and model_type != 'yolo':
                     print(f"\n -> MPS-Wartung: Lade Modell neu für optimale Performance...")
                     try:
                         model.cpu()  # Modell auf CPU
@@ -519,7 +686,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 print(f"Fehler beim Verarbeiten von {frame_path}: {e}")
                 continue
 
-    # JSON-Datei schreiben - Name basierend auf Input
+    # JSON-Datei schreiben - Name basierend auf Input, Ordner basierend auf Modell
     if input_type == 'video':
         # Für Videos: Name basierend auf Video-Dateiname
         video_name = Path(input_path).stem
@@ -531,8 +698,8 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         output_filename = f"{folder_name}_detection_results.json"
         parent_dir = os.path.dirname(input_path)
     
-    # JSON-Datei im detection_results Verzeichnis speichern
-    detection_results_dir = os.path.join(parent_dir, "detection_results")
+    # JSON-Datei im modell-spezifischen detection_results Verzeichnis speichern
+    detection_results_dir = os.path.join(parent_dir, f"detection_results-{model_type}")
     os.makedirs(detection_results_dir, exist_ok=True)
     output_path = os.path.join(detection_results_dir, output_filename)
 
@@ -557,11 +724,9 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     # Detektions-Details zählen
     total_detections = sum(len(frame['detections']) for frame in results_data['detections'])
     cat_detections = sum(len([d for d in frame['detections'] if 'cat' in d['label']]) for frame in results_data['detections'])
-    dog_detections = sum(len([d for d in frame['detections'] if 'dog' in d['label']]) for frame in results_data['detections'])
 
     print(f"Gesamt Detektionen:  {total_detections}")
     print(f"  - Katzen:          {cat_detections}")
-    print(f"  - Hunde:           {dog_detections}")
     print("="*60)
 
     try:
