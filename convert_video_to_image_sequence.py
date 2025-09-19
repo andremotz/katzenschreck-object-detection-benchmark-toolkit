@@ -114,8 +114,8 @@ def convert_video_to_images(video_path, output_dir=None, quality=95):
 def main():
     """Hauptfunktion mit Kommandozeilen-Interface"""
     
-    # Standard-Video-Pfad aus der Anfrage
-    default_video = "/Users/andremotz/Nextcloud/Documents/Projekte/intern - Katzenschreck/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7.mp4"
+    # Standard-Video-Pfad aus der Anfrage - absolute Pfad verwenden
+    default_video = os.path.abspath("/Users/andremotz/Nextcloud/Documents/Projekte/intern - Katzenschreck/Camera_Teich-Footage/20250907PM/Camera_Teich-20250907-155316-1757253196613-7.mp4")
     
     if len(sys.argv) > 1:
         video_path = sys.argv[1]

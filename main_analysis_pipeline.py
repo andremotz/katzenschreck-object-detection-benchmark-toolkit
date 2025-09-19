@@ -231,9 +231,10 @@ Beispiele:
     print(f"📹 Input-Video: {args.video_path}")
     print(f"📁 Frame-Verzeichnis: {frames_dir}")
     
-    # Ergebnis-JSON ermitteln
+    # Ergebnis-JSON ermitteln - absolute Pfade verwenden
     frames_folder_name = os.path.basename(frames_dir)
-    result_json = os.path.join(os.path.dirname(frames_dir), f"{frames_folder_name}_detection_results.json")
+    frames_parent_dir = os.path.abspath(os.path.dirname(frames_dir))
+    result_json = os.path.join(frames_parent_dir, f"{frames_folder_name}_detection_results.json")
     
     if os.path.exists(result_json):
         print(f"📊 Ergebnisse: {result_json}")

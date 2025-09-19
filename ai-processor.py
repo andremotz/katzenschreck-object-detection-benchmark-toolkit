@@ -190,14 +190,14 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
     print()
     
     # JSON-Datenstruktur für Ergebnisse
-    # Relativen Pfad zum Video berechnen (nur Dateiname)
-    relative_video_path = os.path.basename(video_path)
+    # Absoluten Pfad zum Video verwenden
+    absolute_video_path = os.path.abspath(video_path)
     
     results_data = {
         "metadata": {
             "timestamp": datetime.now().isoformat(),
             "input_type": "video",
-            "input_path": relative_video_path,
+            "input_path": absolute_video_path,
             "video_properties": {
                 "total_frames": total_frames,
                 "fps": fps,
@@ -214,11 +214,11 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
         "detections": []
     }
     
-    # Zähler für Fortschrittsanzeige
+    # Zähler für Fortschrittsanzeige  
     processed_count = 0
-    start_time = datetime.now()
+    local_start_time = datetime.now()
     
-    print(f"\nStarte Verarbeitung um {start_time.strftime('%H:%M:%S')}...")
+    print(f"\nStarte Verarbeitung um {local_start_time.strftime('%H:%M:%S')}...")
     print("="*60)
     
     try:
@@ -238,7 +238,7 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
             
             # Fortschrittsanzeige
             progress_percent = (processed_count / total_frames) * 100
-            elapsed_time = datetime.now() - start_time
+            elapsed_time = datetime.now() - local_start_time
             
             # Geschätzte Restzeit berechnen
             if processed_count > 0:
@@ -485,6 +485,9 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     
     text_labels = [["cat"]]
     
+    # Start-Zeit für gesamte Verarbeitung
+    start_time = datetime.now()
+    
     # Je nach Input-Typ unterschiedlich verarbeiten
     if input_type == 'video':
         print(f"Erkannter Input-Typ: Video")
@@ -515,16 +518,16 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         print(f"Frames die verarbeitet werden: {frames_to_process}")
 
         # JSON-Datenstruktur für Ergebnisse
-        # Relative Pfade berechnen (nur Ordnername)
-        relative_input_path = os.path.basename(input_path)
-        relative_frames_folder = os.path.basename(frames_folder)
+        # Absolute Pfade verwenden
+        absolute_input_path = os.path.abspath(input_path)
+        absolute_frames_folder = os.path.abspath(frames_folder)
         
         results_data = {
             "metadata": {
                 "timestamp": datetime.now().isoformat(),
                 "input_type": input_type,
-                "input_path": relative_input_path,
-                "frames_folder": relative_frames_folder,
+                "input_path": absolute_input_path,
+                "frames_folder": absolute_frames_folder,
                 "total_frames": len(frame_files),
                 "frames_to_process": frames_to_process,
                 "processed_frames": 0,
@@ -539,9 +542,9 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
 
         # Zähler für Fortschrittsanzeige
         processed_count = 0
-        start_time = datetime.now()
+        local_start_time = datetime.now()
 
-        print(f"\nStarte Verarbeitung um {start_time.strftime('%H:%M:%S')}...")
+        print(f"\nStarte Verarbeitung um {local_start_time.strftime('%H:%M:%S')}...")
         print("="*60)
 
         # Jeden Frame verarbeiten
@@ -560,7 +563,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 
                 # Fortschrittsanzeige
                 progress_percent = (processed_count / frames_to_process) * 100
-                elapsed_time = datetime.now() - start_time
+                elapsed_time = datetime.now() - local_start_time
                 
                 # Geschätzte Restzeit berechnen
                 if processed_count > 0:
@@ -585,13 +588,13 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                         continue
                     
                     # Frame-Daten zu JSON hinzufügen
-                    # Relativen Pfad zum Frame berechnen (relativ zum Eingabeordner)
-                    relative_frame_path = os.path.relpath(frame_path, os.path.dirname(input_path))
+                    # Absoluten Pfad zum Frame verwenden
+                    absolute_frame_path = os.path.abspath(frame_path)
                     
                     frame_data = {
                         "frame_number": frame_number,
                         "frame_filename": frame_filename,
-                        "frame_path": relative_frame_path,
+                        "frame_path": absolute_frame_path,
                         "image_size": {
                             "width": image.width,
                             "height": image.height
@@ -629,13 +632,13 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                     boxes, scores, text_labels_result = result["boxes"], result["scores"], result["text_labels"]
                     
                     # Frame-Daten zu JSON hinzufügen
-                    # Relativen Pfad zum Frame berechnen (relativ zum Eingabeordner)
-                    relative_frame_path = os.path.relpath(frame_path, os.path.dirname(input_path))
+                    # Absoluten Pfad zum Frame verwenden
+                    absolute_frame_path = os.path.abspath(frame_path)
                     
                     frame_data = {
                         "frame_number": frame_number,
                         "frame_filename": frame_filename,
-                        "frame_path": relative_frame_path,
+                        "frame_path": absolute_frame_path,
                         "image_size": {
                             "width": image.width,
                             "height": image.height
@@ -716,7 +719,15 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     print(f"Gesamtdauer:         {total_processing_time}")
     print(f"Durchschnitt/Frame:  {total_processing_time.total_seconds()/results_data['metadata']['processed_frames']:.2f}s")
     print("-"*60)
-    print(f"Gefundene Frames:    {results_data['metadata']['total_frames']}")
+    # Anzahl Frames je nach Input-Typ ermitteln
+    if 'total_frames' in results_data['metadata']:
+        total_frames_count = results_data['metadata']['total_frames']
+    elif 'video_properties' in results_data['metadata']:
+        total_frames_count = results_data['metadata']['video_properties']['total_frames']
+    else:
+        total_frames_count = results_data['metadata']['processed_frames']
+    
+    print(f"Gefundene Frames:    {total_frames_count}")
     print(f"Verarbeitete Frames: {results_data['metadata']['processed_frames']}")
     print(f"Frames m. Detektion: {results_data['metadata']['frames_with_detections']}")
     print(f"Detektionsrate:      {detection_rate:.1f}%")

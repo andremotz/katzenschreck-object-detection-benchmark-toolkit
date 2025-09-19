@@ -210,7 +210,7 @@ def draw_bounding_box_cv2(image, detection, box_thickness=3, font_scale=2.4):
     return annotated_image
 
 
-def process_single_frame(frame_data, output_dir, use_opencv=False):
+def process_single_frame(frame_data, output_dir, use_opencv=False, create_dir=True):
     """
     Verarbeitet einen einzelnen Frame und speichert das annotierte Bild
     
@@ -218,6 +218,7 @@ def process_single_frame(frame_data, output_dir, use_opencv=False):
         frame_data (dict): Daten eines Frames mit Detektionen
         output_dir (str): Ausgabeordner für annotierte Bilder
         use_opencv (bool): Ob OpenCV statt PIL verwendet werden soll
+        create_dir (bool): Ob der Ausgabeordner erstellt werden soll
     
     Returns:
         tuple: (success, output_path)
@@ -225,10 +226,20 @@ def process_single_frame(frame_data, output_dir, use_opencv=False):
     try:
         # Frame-Bild laden
         frame_path = frame_data['frame_path']
+        # Stelle sicher, dass der Pfad absolut ist
+        absolute_frame_path = os.path.abspath(frame_path)
         
-        if not os.path.exists(frame_path):
-            print(f"Warnung: Frame-Bild nicht gefunden: {frame_path}")
+        if not os.path.exists(absolute_frame_path):
+            print(f"Warnung: Frame-Bild nicht gefunden: {absolute_frame_path}")
             return False, None
+        
+        # Ausgabeordner erstellen falls erforderlich
+        if create_dir:
+            try:
+                os.makedirs(output_dir, exist_ok=True)
+            except Exception as e:
+                print(f"Fehler beim Erstellen des Ausgabeordners: {e}")
+                return False, None
         
         # Ausgabe-Dateiname erstellen
         frame_filename = frame_data['frame_filename']
@@ -237,10 +248,10 @@ def process_single_frame(frame_data, output_dir, use_opencv=False):
         
         if use_opencv:
             # OpenCV-Verarbeitung
-            image = cv2.imread(frame_path)
+            image = cv2.imread(absolute_frame_path)
             
             if image is None:
-                print(f"Fehler: Konnte Bild nicht laden: {frame_path}")
+                print(f"Fehler: Konnte Bild nicht laden: {absolute_frame_path}")
                 return False, None
             
             # Alle Detektionen auf das Bild zeichnen
@@ -252,7 +263,7 @@ def process_single_frame(frame_data, output_dir, use_opencv=False):
         
         else:
             # PIL-Verarbeitung
-            image = Image.open(frame_path)
+            image = Image.open(absolute_frame_path)
             
             # Alle Detektionen auf das Bild zeichnen
             for detection in frame_data['detections']:
@@ -578,20 +589,13 @@ Beispiele:
         # Benutzerdefinierter Pfad - als Path-Objekt behandeln
         args.output_dir = Path(args.output_dir)
     
-    # Ausgabeordner erstellen
-    try:
-        os.makedirs(args.output_dir, exist_ok=True)
-        print(f"Ausgabeordner: {args.output_dir}")
-    except Exception as e:
-        print(f"Fehler beim Erstellen des Ausgabeordners: {e}")
-        return 3  # Exit-Code 3: Ausgabeordner konnte nicht erstellt werden
-    
     # Verarbeitung starten
     print(f"\nStarte Annotation von {len(detection_data['detections'])} Frames...")
     print("="*60)
     
     successful_annotations = 0
     failed_annotations = 0
+    output_dir_created = False
     
     for i, frame_data in enumerate(detection_data['detections']):
         frame_number = frame_data['frame_number']
@@ -600,7 +604,13 @@ Beispiele:
         print(f"Frame {frame_number:6d} ({i+1:3d}/{len(detection_data['detections']):3d}) | "
               f"{num_detections} Detektion(en)", end="", flush=True)
         
-        success, output_path = process_single_frame(frame_data, str(args.output_dir), args.opencv)
+        # Ausgabeordner erst beim ersten erfolgreichen Frame erstellen
+        success, output_path = process_single_frame(frame_data, str(args.output_dir), args.opencv, create_dir=not output_dir_created)
+        
+        # Wenn erfolgreich und Ordner noch nicht erstellt, markiere als erstellt
+        if success and not output_dir_created:
+            output_dir_created = True
+            print(f"\nAusgabeordner erstellt: {args.output_dir}")
         
         if success:
             successful_annotations += 1
@@ -612,6 +622,15 @@ Beispiele:
     # Prüfe ob überhaupt Frames verarbeitet wurden
     if successful_annotations == 0:
         print(f"\nFehler: Keine Frames konnten erfolgreich annotiert werden!")
+        # Lösche den möglicherweise erstellten leeren Ordner
+        if output_dir_created and os.path.exists(args.output_dir):
+            try:
+                # Prüfe ob Ordner leer ist und lösche ihn
+                if not os.listdir(args.output_dir):
+                    os.rmdir(args.output_dir)
+                    print(f"Leerer Ausgabeordner wurde entfernt: {args.output_dir}")
+            except Exception as e:
+                print(f"Warnung: Konnte leeren Ausgabeordner nicht entfernen: {e}")
         return 4  # Exit-Code 4: Keine erfolgreichen Annotationen
     
     # Übersichtsbild erstellen

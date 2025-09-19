@@ -99,8 +99,8 @@ def convert_video_to_frames(video_file, script_path):
 def main():
     """Hauptfunktion"""
     
-    # Standard-Pfad zum Camera_Teich-Footage Ordner
-    default_footage_dir = "/Volumes/documents/Camera_Teich-Footage"
+    # Standard-Pfad zum Camera_Teich-Footage Ordner - absolute Pfad verwenden
+    default_footage_dir = os.path.abspath("/Volumes/documents/Camera_Teich-Footage")
     
     # Pfad zum convert_video_to_image_sequences.py Script
     script_dir = Path(__file__).parent
