@@ -421,7 +421,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     )
     parser.add_argument(
         '--yolo-model',
-        default='yolo11n.pt',
+        default='yolo12x.pt',
         help='YOLO-Modell-Datei (default: yolo11n.pt). Kann auch yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt sein'
     )
     
