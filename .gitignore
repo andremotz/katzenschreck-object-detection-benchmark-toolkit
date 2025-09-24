@@ -117,3 +117,10 @@ dmypy.json
 ehthumbs.db
 Thumbs.db
 yolo*.pt
+
+# AI Detection Project Output
+detection_results/
+detection_results-*/
+annotated_*/
+*_frames/
+*.json

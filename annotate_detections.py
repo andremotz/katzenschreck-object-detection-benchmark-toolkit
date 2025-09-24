@@ -1,22 +1,22 @@
 #!/usr/bin/env python3
 """
-Annotierungs-Script für Detektionsergebnisse
+Annotation script for detection results
 
-Dieses Script liest JSON-Detektionsergebnisse ein und zeichnet Bounding-Boxes 
-auf die entsprechenden Frame-Bilder.
+This script reads JSON detection results and draws bounding boxes 
+on the corresponding frame images.
 
-Verwendung:
+Usage:
     python annotate_detections.py detection_results.json [--output-dir output_folder]
 
-Exit-Codes:
-    0 - Erfolgreich abgeschlossen
-    1 - JSON-Datei nicht gefunden
-    2 - JSON-Datei konnte nicht geladen werden
-    3 - Ausgabeordner konnte nicht erstellt werden
-    4 - Keine Frames konnten annotiert werden
-    5 - Einige Frame-Annotationen fehlgeschlagen
-    6 - Frame-Annotation und Video-Erstellung teilweise fehlgeschlagen
-    7 - Nur Video-Erstellung fehlgeschlagen
+Exit codes:
+    0 - Successfully completed
+    1 - JSON file not found
+    2 - JSON file could not be loaded
+    3 - Output directory could not be created
+    4 - No frames could be annotated
+    5 - Some frame annotations failed
+    6 - Frame annotation and video creation partially failed
+    7 - Only video creation failed
 """
 
 import os

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Video zu Bildsequenz Konverter
-Konvertiert ein Video in einzelne JPG-Bilder und speichert sie in einem Unterordner
+Video to Image Sequence Converter
+Converts a video into individual JPG images and saves them in a subfolder
 """
 
 import cv2

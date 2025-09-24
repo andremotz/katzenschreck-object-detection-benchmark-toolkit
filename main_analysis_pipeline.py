@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Hauptverarbeitungs-Pipeline für Video-zu-AI-Objekterkennung
-Kombiniert convert_video_to_image_sequence.py und ai-processor.py zu einer einzigen Pipeline
+Main processing pipeline for video-to-AI object detection
+Combines convert_video_to_image_sequence.py and ai-processor.py into a single pipeline
 """
 
 import sys
@@ -14,21 +14,21 @@ from datetime import datetime
 
 def run_command(command, description):
     """
-    Führt einen Systembefehl aus und gibt detaillierte Rückmeldungen
+    Executes a system command and provides detailed feedback
     
     Args:
-        command (list): Der auszuführende Befehl als Liste
-        description (str): Beschreibung des Befehls für die Ausgabe
+        command (list): The command to execute as a list
+        description (str): Description of the command for output
     
     Returns:
         tuple: (success, stdout, stderr)
     """
     print(f"\n🔄 {description}")
-    print(f"Befehl: {' '.join(command)}")
+    print(f"Command: {' '.join(command)}")
     print("=" * 60)
     
     try:
-        # subprocess.Popen für Live-Ausgabe mit gleichzeitigem Sammeln der Ausgabe
+        # subprocess.Popen for live output with simultaneous output collection
         process = subprocess.Popen(
             command,
             stdout=subprocess.PIPE,
@@ -40,7 +40,7 @@ def run_command(command, description):
         
         stdout_lines = []
         
-        # Live-Ausgabe zeigen und gleichzeitig sammeln
+        # Show live output and collect simultaneously
         while True:
             output = process.stdout.readline()
             if output == '' and process.poll() is not None:
@@ -49,114 +49,114 @@ def run_command(command, description):
                 print(output.strip())
                 stdout_lines.append(output)
         
-        # Warten bis Prozess beendet ist
+        # Wait until process is finished
         return_code = process.poll()
         stdout = ''.join(stdout_lines)
         
         if return_code == 0:
-            print(f"\n✅ {description} erfolgreich abgeschlossen")
+            print(f"\n✅ {description} completed successfully")
             return True, stdout, ""
         else:
-            print(f"\n❌ {description} fehlgeschlagen (Exit Code: {return_code})")
+            print(f"\n❌ {description} failed (Exit Code: {return_code})")
             return False, stdout, ""
             
     except Exception as e:
-        print(f"❌ Fehler beim Ausführen von '{description}': {e}")
+        print(f"❌ Error executing '{description}': {e}")
         return False, "", str(e)
 
 
 def validate_video_file(video_path):
     """
-    Validiert, ob die Video-Datei existiert und lesbar ist
+    Validates if the video file exists and is readable
     
     Args:
-        video_path (str): Pfad zur Video-Datei
+        video_path (str): Path to the video file
     
     Returns:
-        bool: True wenn gültig, False sonst
+        bool: True if valid, False otherwise
     """
     if not os.path.exists(video_path):
-        print(f"❌ Fehler: Video-Datei nicht gefunden: {video_path}")
+        print(f"❌ Error: Video file not found: {video_path}")
         return False
     
     if not os.path.isfile(video_path):
-        print(f"❌ Fehler: '{video_path}' ist keine Datei")
+        print(f"❌ Error: '{video_path}' is not a file")
         return False
     
-    # Prüfe auf gängige Video-Endungen
+    # Check for common video extensions
     video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.mp3', '.wmv', '.flv']
     file_extension = Path(video_path).suffix.lower()
     
     if file_extension not in video_extensions:
-        print(f"⚠️  Warnung: '{file_extension}' ist möglicherweise kein unterstütztes Video-Format")
-        print(f"   Unterstützte Formate: {', '.join(video_extensions)}")
+        print(f"⚠️  Warning: '{file_extension}' may not be a supported video format")
+        print(f"   Supported formats: {', '.join(video_extensions)}")
     
     return True
 
 
 def main():
-    """Hauptfunktion der Verarbeitungs-Pipeline"""
+    """Main function of the processing pipeline"""
     
-    # Argument Parser konfigurieren
+    # Configure argument parser
     parser = argparse.ArgumentParser(
-        description='Komplette Video-zu-AI-Objekterkennung Pipeline',
+        description='Complete video-to-AI object detection pipeline',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
-Beispiele:
-  python main_processing_pipeline.py /pfad/zum/video.mp4
-  python main_processing_pipeline.py /pfad/zum/video.mp4 --quality 90
-  python main_processing_pipeline.py video.mp4 --output-dir /custom/output
+Examples:
+  python main_analysis_pipeline.py /path/to/video.mp4
+  python main_analysis_pipeline.py /path/to/video.mp4 --quality 90
+  python main_analysis_pipeline.py video.mp4 --output-dir /custom/output
         '''
     )
     
     parser.add_argument(
         'video_path',
-        help='Pfad zur Video-Datei, die verarbeitet werden soll'
+        help='Path to the video file to be processed'
     )
     
     parser.add_argument(
         '--output-dir',
-        help='Output-Verzeichnis für Frames (optional, wird automatisch erstellt)'
+        help='Output directory for frames (optional, will be created automatically)'
     )
     
     parser.add_argument(
         '--quality',
         type=int,
         default=95,
-        help='JPEG-Qualität für Frames (1-100, Standard: 95)'
+        help='JPEG quality for frames (1-100, default: 95)'
     )
     
     args = parser.parse_args()
     
-    # Pipeline starten
+    # Start pipeline
     start_time = datetime.now()
-    print("🚀 Video-zu-AI-Objekterkennung Pipeline gestartet")
-    print(f"⏰ Startzeit: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print("🚀 Video-to-AI object detection pipeline started")
+    print(f"⏰ Start time: {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
     print("=" * 80)
     
-    # Video-Datei validieren
-    print(f"📹 Input-Video: {args.video_path}")
+    # Validate video file
+    print(f"📹 Input video: {args.video_path}")
     if not validate_video_file(args.video_path):
         sys.exit(1)
     
-    # Pfade für Skripte bestimmen
+    # Determine script paths
     script_dir = Path(__file__).parent
     convert_script = script_dir / "convert_video_to_image_sequence.py"
     ai_script = script_dir / "ai-processor.py"
     
-    # Prüfen ob benötigte Skripte existieren
+    # Check if required scripts exist
     if not convert_script.exists():
-        print(f"❌ Fehler: convert_video_to_image_sequence.py nicht gefunden in {script_dir}")
+        print(f"❌ Error: convert_video_to_image_sequence.py not found in {script_dir}")
         sys.exit(1)
     
     if not ai_script.exists():
-        print(f"❌ Fehler: ai-processor.py nicht gefunden in {script_dir}")
+        print(f"❌ Error: ai-processor.py not found in {script_dir}")
         sys.exit(1)
     
-    print(f"✅ Alle benötigten Skripte gefunden")
+    print(f"✅ All required scripts found")
     
-    # SCHRITT 1: Video zu Bildsequenz konvertieren
-    print(f"\n📋 SCHRITT 1: Video zu Bildsequenz konvertieren")
+    # STEP 1: Convert video to image sequence
+    print(f"\n📋 STEP 1: Convert video to image sequence")
     
     convert_command = [
         sys.executable,
@@ -164,46 +164,46 @@ Beispiele:
         args.video_path
     ]
     
-    # Parameter für convert_video_to_image_sequence.py hinzufügen
-    # Reihenfolge: video_path, output_dir, quality, frame_skip
+    # Add parameters for convert_video_to_image_sequence.py
+    # Order: video_path, output_dir, quality, frame_skip
     if args.output_dir:
-        # Wenn Output-Dir angegeben, alle Parameter setzen
+        # If output dir specified, set all parameters
         convert_command.extend([args.output_dir, str(args.quality), "1"])
     else:
-        # Kein Output-Dir angegeben - das Skript erstellt automatisch videoname_frames
-        # Wir müssen trotzdem die Parameter in der richtigen Reihenfolge übergeben
-        # Also: video_path (bereits gesetzt), output_dir (leer lassen), quality, frame_skip
-        # Da wir output_dir weglassen wollen, übergeben wir nur quality und frame_skip wenn nötig
+        # No output dir specified - script automatically creates videoname_frames
+        # We still need to pass parameters in the correct order
+        # So: video_path (already set), output_dir (leave empty), quality, frame_skip
+        # Since we want to omit output_dir, we only pass quality and frame_skip if necessary
         if args.quality != 95:
             convert_command.extend([str(args.quality), "1"])
-        # Wenn Standard-Quality: keine weiteren Parameter nötig
+        # If default quality: no additional parameters needed
     
-    success, stdout, stderr = run_command(convert_command, "Video-zu-Frames Konvertierung")
+    success, stdout, stderr = run_command(convert_command, "Video-to-frames conversion")
     
     if not success:
-        print(f"❌ Pipeline abgebrochen: Video-Konvertierung fehlgeschlagen")
+        print(f"❌ Pipeline aborted: Video conversion failed")
         sys.exit(1)
     
-    # Output-Verzeichnis aus der Konvertierung ermitteln
-    # Das convert_video_to_image_sequence.py gibt das Output-Verzeichnis aus
+    # Determine output directory from conversion
+    # The convert_video_to_image_sequence.py outputs the output directory
     frames_dir = None
     for line in stdout.split('\n'):
-        if 'Output-Verzeichnis:' in line:
-            frames_dir = line.split('Output-Verzeichnis:')[1].strip()
+        if 'Output directory:' in line or 'Output-Verzeichnis:' in line:
+            frames_dir = line.split(':')[1].strip()
             break
-        elif 'Bilder gespeichert in:' in line:
-            frames_dir = line.split('Bilder gespeichert in:')[1].strip()
+        elif 'Images saved to:' in line or 'Bilder gespeichert in:' in line:
+            frames_dir = line.split(':')[1].strip()
             break
     
     if not frames_dir or not os.path.exists(frames_dir):
-        print(f"❌ Fehler: Konnte Frame-Verzeichnis nicht ermitteln oder es existiert nicht")
-        print(f"   Ermitteltes Verzeichnis: {frames_dir}")
+        print(f"❌ Error: Could not determine frame directory or it does not exist")
+        print(f"   Detected directory: {frames_dir}")
         sys.exit(1)
     
-    print(f"✅ Frames erfolgreich erstellt in: {frames_dir}")
+    print(f"✅ Frames successfully created in: {frames_dir}")
     
-    # SCHRITT 2: AI-Objekterkennung ausführen
-    print(f"\n🤖 SCHRITT 2: AI-Objekterkennung")
+    # STEP 2: Execute AI object detection
+    print(f"\n🤖 STEP 2: AI object detection")
     
     ai_command = [
         sys.executable,
@@ -211,39 +211,39 @@ Beispiele:
         frames_dir
     ]
     
-    success, stdout, stderr = run_command(ai_command, "AI-Objekterkennung")
+    success, stdout, stderr = run_command(ai_command, "AI object detection")
     
     if not success:
-        print(f"❌ Pipeline abgebrochen: AI-Verarbeitung fehlgeschlagen")
-        print(f"🗑️  Frame-Verzeichnis wird beibehalten für Debugging: {frames_dir}")
+        print(f"❌ Pipeline aborted: AI processing failed")
+        print(f"🗑️  Frame directory will be kept for debugging: {frames_dir}")
         sys.exit(1)
     
-    # Erfolgreiche Verarbeitung
+    # Successful processing
     end_time = datetime.now()
     total_time = end_time - start_time
     
     print("\n" + "=" * 80)
-    print("🎉 PIPELINE ERFOLGREICH ABGESCHLOSSEN!")
+    print("🎉 PIPELINE COMPLETED SUCCESSFULLY!")
     print("=" * 80)
-    print(f"⏰ Startzeit:    {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"⏰ Endzeit:      {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
-    print(f"⏱️  Gesamtdauer: {total_time}")
-    print(f"📹 Input-Video: {args.video_path}")
-    print(f"📁 Frame-Verzeichnis: {frames_dir}")
+    print(f"⏰ Start time:     {start_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"⏰ End time:       {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    print(f"⏱️  Total duration: {total_time}")
+    print(f"📹 Input video: {args.video_path}")
+    print(f"📁 Frame directory: {frames_dir}")
     
-    # Ergebnis-JSON ermitteln - absolute Pfade verwenden
+    # Determine result JSON - use absolute paths
     frames_folder_name = os.path.basename(frames_dir)
     frames_parent_dir = os.path.abspath(os.path.dirname(frames_dir))
     result_json = os.path.join(frames_parent_dir, f"{frames_folder_name}_detection_results.json")
     
     if os.path.exists(result_json):
-        print(f"📊 Ergebnisse: {result_json}")
+        print(f"📊 Results: {result_json}")
     
-    # Frame-Verzeichnis wird immer beibehalten
-    print(f"📁 Frame-Verzeichnis beibehalten: {frames_dir}")
+    # Frame directory is always kept
+    print(f"📁 Frame directory kept: {frames_dir}")
     
     print("=" * 80)
-    print("🏁 Pipeline beendet")
+    print("🏁 Pipeline finished")
 
 
 if __name__ == "__main__":

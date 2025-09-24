@@ -1,99 +1,99 @@
-# Hugging Face Katzendetector-Playground
+# AI Detection Model Comparison
 
-Dieses Projekt verwendet das Hugging Face OWLv2 (Open-World Localization) Modell zur automatischen Erkennung von Katzen und Hunden in Videoaufnahmen. Das System analysiert Videomaterial durch Bildsequenz-Extraktion und KI-basierte Objekterkennung.
+This project uses Hugging Face OWLv2 (Open-World Localization) and YOLO models for automatic detection of cats and dogs in video recordings. The system analyzes video material through image sequence extraction and AI-based object detection for offline model comparison and evaluation.
 
-## Allgemeines Vorgehen
+## General Approach
 
-### 1. Video-zu-Bildsequenz Konvertierung
-Das Projekt nutzt einen zweistufigen Ansatz zur effizienten Verarbeitung von Videodateien:
+### 1. Video-to-Image-Sequence Conversion
+The project uses a two-stage approach for efficient processing of video files:
 
-#### Einzelne Video-Konvertierung (`convert_video_to_image_sequence.py`)
-- Konvertiert einzelne MP4-Videos in Bildsequenzen (JPG-Dateien)
-- Extrahiert Frames mit konfigurierbaren Parametern (Qualität, Frame-Skip)
-- Speichert Bilder in einem `_frames` Unterordner neben der Videodatei
-- Fortschrittsanzeige und Performance-Optimierung
+#### Single Video Conversion (`convert_video_to_image_sequence.py`)
+- Converts individual MP4 videos into image sequences (JPG files)
+- Extracts frames with configurable parameters (quality, frame skip)
+- Saves images in a `_frames` subfolder next to the video file
+- Progress display and performance optimization
 
-#### Batch-Verarbeitung (`convert_video_batch.py`)
-- Scannt rekursiv ein Verzeichnis nach allen Videodateien
-- Prüft automatisch, ob bereits `_frames` Ordner existieren
-- Konvertiert automatisch alle Videos ohne entsprechende Bildsequenzen
-- Übersicht und Zusammenfassung aller verarbeiteten Dateien
+#### Batch Processing (`convert_batch.py`)
+- Recursively scans a directory for all video files
+- Automatically checks if `_frames` folders already exist
+- Automatically converts all videos without corresponding image sequences
+- Overview and summary of all processed files
 
-### 2. KI-basierte Objekterkennung (`ai-processor.py`)
+### 2. AI-based Object Detection (`ai-processor.py`)
 
-#### Verfügbare AI-Modelle
-Das Script unterstützt zwei verschiedene Objekterkennungsmodelle:
+#### Available AI Models
+The script supports two different object detection models:
 
-**OWLv2 (Standard)**
-- **Modell**: `google/owlv2-base-patch16-ensemble`
-- **Framework**: Hugging Face Transformers mit PyTorch
-- **Erkennungskategorien**: Nur Katzen (text-basierte Erkennung)
-- **Vorteile**: Flexiblere Klassendefinition, bessere Text-basierte Objekterkennung
-- **Nachteile**: Langsamere Verarbeitung
+**OWLv2 (Default)**
+- **Model**: `google/owlv2-base-patch16-ensemble`
+- **Framework**: Hugging Face Transformers with PyTorch
+- **Detection Categories**: Cats and dogs (text-based detection)
+- **Advantages**: More flexible class definition, better text-based object detection
+- **Disadvantages**: Slower processing
 
 **YOLO v11/v12 (Optional)**
-- **Modelle**: `yolo11n.pt`, `yolo11s.pt`, `yolo11m.pt`, `yolo11l.pt`, `yolo11x.pt`
+- **Models**: `yolo11n.pt`, `yolo11s.pt`, `yolo11m.pt`, `yolo11l.pt`, `yolo11x.pt`
 - **Framework**: Ultralytics YOLO
-- **Erkennungskategorien**: Nur Katzen (aus 80 COCO-Klassen)
-- **Vorteile**: Deutlich schnellere Verarbeitung, bessere Performance
-- **Nachteile**: Feste Klassendefinition
+- **Detection Categories**: Cats and dogs (from 80 COCO classes)
+- **Advantages**: Significantly faster processing, better performance
+- **Disadvantages**: Fixed class definition
 
-#### Modell-Auswahl
+#### Model Selection
 ```bash
-# Standard OWLv2 verwenden
-python ai-processor.py /pfad/zum/video.mp4
+# Use default OWLv2
+python ai-processor.py /path/to/video.mp4
 
-# YOLO verwenden (schneller)
-python ai-processor.py --model yolo /pfad/zum/video.mp4
+# Use YOLO (faster)
+python ai-processor.py --model yolo /path/to/video.mp4
 
-# Spezifisches YOLO-Modell verwenden
-python ai-processor.py --model yolo --yolo-model yolo11l.pt /pfad/zum/video.mp4
+# Use specific YOLO model
+python ai-processor.py --model yolo --yolo-model yolo11l.pt /path/to/video.mp4
 ```
 
-#### YOLO-Modell Übersicht
-| Modell | Größe | Geschwindigkeit | Genauigkeit | Verwendung |
+#### YOLO Model Overview
+| Model | Size | Speed | Accuracy | Usage |
 |--------|-------|----------------|-------------|------------|
-| `yolo11n.pt` | Nano | Sehr schnell | Basis | Schnelle Tests |
-| `yolo11s.pt` | Small | Schnell | Gut | Produktive Nutzung |
-| `yolo11m.pt` | Medium | Mittel | Sehr gut | Ausgewogene Lösung |
-| `yolo11l.pt` | Large | Langsam | Ausgezeichnet | Hohe Genauigkeit |
-| `yolo11x.pt` | Extra Large | Sehr langsam | Beste | Maximale Präzision |
+| `yolo11n.pt` | Nano | Very fast | Basic | Quick tests |
+| `yolo11s.pt` | Small | Fast | Good | Production use |
+| `yolo11m.pt` | Medium | Medium | Very good | Balanced solution |
+| `yolo11l.pt` | Large | Slow | Excellent | High accuracy |
+| `yolo11x.pt` | Extra Large | Very slow | Best | Maximum precision |
 
-#### Erkennungsprozess
-1. **Frame-Laden**: Sequenzielle Verarbeitung der extrahierten Bildsequenz
-2. **KI-Analyse**: Object Detection mit konfigurierbarem Schwellenwert (0.1)
-3. **Bounding Box Extraktion**: Präzise Lokalisierung erkannter Objekte
-4. **Confidence-Bewertung**: Vertrauensscore für jede Erkennung
+#### Detection Process
+1. **Frame Loading**: Sequential processing of extracted image sequence
+2. **AI Analysis**: Object detection with configurable threshold (0.1)
+3. **Bounding Box Extraction**: Precise localization of detected objects
+4. **Confidence Assessment**: Confidence score for each detection
 
-#### Ausgabe und Dokumentation
-- **JSON-Export**: Strukturierte Speicherung aller Erkennungsergebnisse
-- **Metadaten**: Verarbeitungsstatistiken und Konfigurationsparameter (inklusive verwendetes Modell)
-- **Detaillierte Logs**: Fortschrittsanzeige mit Zeitschätzungen
-- **Performance-Metriken**: Detektionsrate und Verarbeitungsgeschwindigkeit
-- **Modell-spezifische Ordner**: Getrennte Speicherung je nach verwendetem AI-Modell
+#### Output and Documentation
+- **JSON Export**: Structured storage of all detection results
+- **Metadata**: Processing statistics and configuration parameters (including used model)
+- **Detailed Logs**: Progress display with time estimates
+- **Performance Metrics**: Detection rate and processing speed
+- **Model-specific Folders**: Separate storage for each AI model used
 
-#### Ordnerstruktur der Ergebnisse
+#### Results Folder Structure
 ```
-/pfad/zum/video/
+/path/to/video/
 ├── video.mp4
-├── detection_results-owlv2/     # OWLv2 Ergebnisse
+├── detection_results-owlv2/     # OWLv2 results
 │   └── video_detection_results.json
-└── detection_results-yolo/      # YOLO Ergebnisse
+└── detection_results-yolo/      # YOLO results
     └── video_detection_results.json
 ```
 
-Dies ermöglicht parallele Verarbeitung mit beiden Modellen und direkten Vergleich der Ergebnisse.
+This enables parallel processing with both models and direct comparison of results.
 
-### 3. Datenstruktur der Ergebnisse
+### 3. Results Data Structure
 
-Die generierten JSON-Dateien enthalten:
-- **Metadaten**: Timestamp, Verarbeitungsstatistiken, Konfiguration
-- **Frame-Informationen**: Bildgröße, Dateiname, Pfad
-- **Erkennungsdetails**: Objekt-Label, Confidence-Score, Bounding Box Koordinaten
+The generated JSON files contain:
+- **Metadata**: Timestamp, processing statistics, configuration
+- **Frame Information**: Image size, filename, path
+- **Detection Details**: Object labels, confidence scores, bounding box coordinates
 
-### 4. Systemanforderungen
+### 4. System Requirements
 
-#### Basis-Requirements (für OWLv2)
+#### Base Requirements (for OWLv2)
 ```
 transformers>=4.30.0
 torch>=2.0.0
@@ -103,304 +103,304 @@ scipy
 opencv-python>=4.8.0
 ```
 
-#### Zusätzliche Requirements für YOLO-Unterstützung
+#### Additional Requirements for YOLO Support
 ```
 ultralytics>=8.0.0
 numpy>=1.21.0
 ```
 
-**Installation mit YOLO-Unterstützung:**
+**Installation with YOLO support:**
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Installation
 
-Um die Scripts auf einem neuen Rechner zu installieren, folgen Sie diesen Schritten:
+To install the scripts on a new machine, follow these steps:
 
-### Voraussetzungen
-- Python 3.8+ installiert
-- Git installiert
-- Zugang zum Repository
+### Prerequisites
+- Python 3.8+ installed
+- Git installed
+- Access to the repository
 
-### Schritt-für-Schritt Installation
+### Step-by-Step Installation
 
-1. **Repository klonen**
+1. **Clone repository**
    ```bash
    git clone <repository-url>
-   cd huggingface-catdetector-playground
+   cd ai-detection-model-comparison
    ```
 
-2. **Virtuelle Umgebung erstellen**
+2. **Create virtual environment**
    ```bash
    python -m venv venv
    ```
 
-3. **Virtuelle Umgebung aktivieren**
+3. **Activate virtual environment**
    
-   **Auf Linux/macOS:**
+   **On Linux/macOS:**
    ```bash
    source venv/bin/activate
    ```
    
-   **Auf Windows:**
+   **On Windows:**
    ```bash
    venv\Scripts\activate
    ```
 
-4. **Dependencies installieren**
+4. **Install dependencies**
    ```bash
    pip install -r requirements.txt
    ```
 
-5. **Installation überprüfen**
+5. **Verify installation**
    ```bash
-   python -c "import torch; import transformers; print('Installation erfolgreich!')"
+   python -c "import torch; import transformers; print('Installation successful!')"
    ```
 
-### Zusätzliche Hinweise für GPU-Unterstützung
+### Additional Notes for GPU Support
 
-Für optimale Performance auf dem starken Rechner (Schritt 5 des Workflows):
+For optimal performance on powerful hardware:
 
 ```bash
-# Für CUDA-fähige GPUs (NVIDIA)
+# For CUDA-capable GPUs (NVIDIA)
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 
-# Installation überprüfen
-python -c "import torch; print(f'CUDA verfügbar: {torch.cuda.is_available()}')"
+# Verify installation
+python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
 
-### Pfad-Anpassungen
+### Path Adjustments
 
-Nach der Installation müssen die Pfade in den Scripts an Ihre lokale Umgebung angepasst werden:
+After installation, you may need to adjust paths in the scripts for your local environment:
 
-- **`convert_video_batch.py`**: Zeile 103 - Pfad zum Camera_Teich-Footage Ordner
-- **`ai-processor.py`**: Zeile 14 - Pfad zum frames_folder
+- **`convert_batch.py`**: Line 103 - Path to video footage folder
+- **`ai-processor.py`**: Line 14 - Path to frames_folder
 
-### Updates abrufen
+### Getting Updates
 
-Um das Projekt auf den neuesten Stand zu bringen:
+To update the project to the latest version:
 
 ```bash
 git pull origin main
-pip install -r requirements.txt  # Falls neue Dependencies hinzugefügt wurden
+pip install -r requirements.txt  # If new dependencies were added
 ```
 
-## Funktionales Vorgehen
+## Functional Workflow
 
-Der komplette Workflow des Katzendetector-Systems folgt einem strukturierten 6-Stufen-Prozess:
+The complete workflow of the detection system follows a structured 6-stage process:
 
-### 1. Video-Download
-- **Aktion**: Benutzer lädt Videomaterial (z.B. von Kameras) herunter
-- **Format**: Typischerweise MP4-Dateien
-- **Speicherort**: Lokaler Rechner für erste Sichtung
+### 1. Video Collection
+- **Action**: User downloads video material (e.g., from cameras)
+- **Format**: Typically MP4 files
+- **Storage**: Local machine for initial review
 
-### 2. Manuelle Video-Sichtung
-- **Aktion**: Benutzer sichtet das heruntergeladene Video manuell
-- **Entscheidung**: 
-  - ✅ **Katzen vorhanden** → Video behalten für weitere Verarbeitung
-  - ❌ **Keine Katzen** → Video löschen (spart Speicher und Verarbeitungszeit)
-- **Zweck**: Effiziente Vorselektion zur Reduzierung der Datenmenge
+### 2. Manual Video Review
+- **Action**: User manually reviews downloaded videos
+- **Decision**: 
+  - ✅ **Animals present** → Keep video for further processing
+  - ❌ **No animals** → Delete video (saves storage and processing time)
+- **Purpose**: Efficient pre-selection to reduce data volume
 
-### 3. Video-Transfer auf Fileshare
-- **Aktion**: Relevante Videos (mit Katzen) auf zentralen Fileshare übertragen
-- **Ziel**: Zentrale Verfügbarkeit für die weitere automatisierte Verarbeitung
-- **Organisation**: Strukturierte Ablage nach Datum/Kamera/etc.
+### 3. Video Transfer to Fileshare
+- **Action**: Transfer relevant videos (with animals) to central fileshare
+- **Goal**: Central availability for further automated processing
+- **Organization**: Structured storage by date/camera/etc.
 
-### 4. Automatische Bildsequenz-Extraktion
-- **Tool**: `convert_video_batch.py`
-- **Ausführungsort**: Fileshare-Server
-- **Prozess**: 
-  - Rekursives Scannen aller Videos im Fileshare
-  - Automatische Konvertierung in Bildsequenzen (`_frames` Ordner)
-  - Vermeidung doppelter Verarbeitung bereits konvertierter Videos
+### 4. Automatic Image Sequence Extraction
+- **Tool**: `convert_batch.py`
+- **Execution Location**: Fileshare server
+- **Process**: 
+  - Recursive scanning of all videos in fileshare
+  - Automatic conversion to image sequences (`_frames` folders)
+  - Avoidance of duplicate processing of already converted videos
 
-### 5. KI-basierte Objekterkennung
+### 5. AI-based Object Detection
 - **Tool**: `ai-processor.py`
-- **Ausführungsort**: Starker Rechner mit GPU-Unterstützung
-- **Prozess**:
-  - Verarbeitung der generierten Bildsequenzen
-  - Wahlweise OWLv2 oder YOLO für Objekterkennung
-  - Erzeugung detaillierter JSON-Erkennungsberichte in modell-spezifischen Ordnern
+- **Execution Location**: Powerful machine with GPU support
+- **Process**:
+  - Processing of generated image sequences
+  - Choice between OWLv2 or YOLO for object detection
+  - Generation of detailed JSON detection reports in model-specific folders
 
-#### Performance-Empfehlungen:
-- **Große Datenmengen**: YOLO verwenden (`--model yolo`) für deutlich schnellere Verarbeitung
-- **Höchste Genauigkeit**: OWLv2 für präzisere text-basierte Katzenerkennung
-- **GPU-Nutzung**: Beide Modelle profitieren von CUDA/MPS-Unterstützung
-- **Modell-Vergleich**: Parallele Verarbeitung mit beiden Modellen für Qualitätsvergleich
+#### Performance Recommendations:
+- **Large datasets**: Use YOLO (`--model yolo`) for significantly faster processing
+- **Highest accuracy**: OWLv2 for more precise text-based animal detection
+- **GPU usage**: Both models benefit from CUDA/MPS support
+- **Model comparison**: Parallel processing with both models for quality comparison
 
-### 6. Zentrale Zusammenführung der Ergebnisse
-- **Aktion**: Alle generierten JSON-Files werden an zentraler Stelle gesammelt
-- **Zweck**: 
-  - Übergreifende Analyse und Statistiken
-  - Zentrale Datenhaltung für weitere Auswertungen
-  - Langzeit-Monitoring und Trends
+### 6. Central Results Aggregation
+- **Action**: All generated JSON files are collected centrally
+- **Purpose**: 
+  - Cross-analysis and statistics
+  - Central data storage for further evaluations
+  - Long-term monitoring and trends
 
-## Technischer Workflow
+## Technical Workflow
 
-Für die technische Umsetzung:
+For technical implementation:
 
-1. **Video-Vorbereitung**: Platzierung der selektierten MP4-Dateien im Fileshare-Verzeichnis
-2. **Batch-Konvertierung**: Ausführung von `convert_video_batch.py` für automatische Bildsequenz-Extraktion
-3. **KI-Analyse**: Ausführung der Objekterkennung auf leistungsstarker Hardware
+1. **Video Preparation**: Place selected MP4 files in fileshare directory
+2. **Batch Conversion**: Execute `convert_batch.py` for automatic image sequence extraction
+3. **AI Analysis**: Run object detection on powerful hardware
    ```bash
-   # Schnelle Verarbeitung mit YOLO
-   python ai-processor.py --model yolo /pfad/zu/video_frames/
+   # Fast processing with YOLO
+   python ai-processor.py --model yolo /path/to/video_frames/
    
-   # Präzise Verarbeitung mit OWLv2
-   python ai-processor.py --model owlv2 /pfad/zu/video_frames/
+   # Precise processing with OWLv2
+   python ai-processor.py --model owlv2 /path/to/video_frames/
    
-   # Beide Modelle für Vergleich
-   python ai-processor.py --model owlv2 /pfad/zu/video_frames/
-   python ai-processor.py --model yolo /pfad/zu/video_frames/
+   # Both models for comparison
+   python ai-processor.py --model owlv2 /path/to/video_frames/
+   python ai-processor.py --model yolo /path/to/video_frames/
    ```
-4. **Ergebnis-Aggregation**: Sammlung und Zusammenführung aller JSON-Ausgabedateien aus modell-spezifischen Ordnern
+4. **Result Aggregation**: Collection and consolidation of all JSON output files from model-specific folders
 
-Das System ist für große Videodatenmengen optimiert und bietet eine vollständig automatisierte Pipeline von der manuell vorselektierten Video-Eingabe bis zur strukturierten Erkennungsausgabe. Die YOLO-Integration ermöglicht deutlich schnellere Verarbeitung großer Datenmengen bei weiterhin hoher Erkennungsqualität.
+The system is optimized for large video datasets and provides a fully automated pipeline from manually pre-selected video input to structured detection output. The YOLO integration enables significantly faster processing of large data volumes while maintaining high detection quality.
 
-## Detektions-Annotation Script
+## Detection Annotation Script
 
-### Übersicht
+### Overview
 
-Das `annotate_detections.py` Script liest JSON-Detektionsergebnisse von `ai-processor.py` ein und zeichnet Bounding-Boxes auf die entsprechenden Frame-Bilder.
+The `annotate_detections.py` script reads JSON detection results from `ai-processor.py` and draws bounding boxes on the corresponding frame images.
 
-### Funktionen
+### Features
 
-#### Hauptfunktionen:
-- ✅ **JSON-Parser**: Lädt Detektionsergebnisse aus JSON-Dateien
-- ✅ **Bounding-Box Zeichnung**: Zeichnet farbige Bounding-Boxes um erkannte Objekte
-- ✅ **Label-Anzeige**: Zeigt Label und Confidence-Score für jede Detektion
-- ✅ **Batch-Verarbeitung**: Verarbeitet alle detektierten Frames automatisch
-- ✅ **Fortschrittsanzeige**: Zeigt Verarbeitungsfortschritt in Echtzeit
-- ✅ **Übersichtsbild**: Erstellt automatisch ein Grid der besten Detektionen
+#### Main Functions:
+- ✅ **JSON Parser**: Loads detection results from JSON files
+- ✅ **Bounding Box Drawing**: Draws colored bounding boxes around detected objects
+- ✅ **Label Display**: Shows labels and confidence scores for each detection
+- ✅ **Batch Processing**: Processes all detected frames automatically
+- ✅ **Progress Display**: Shows processing progress in real-time
+- ✅ **Summary Image**: Automatically creates a grid of the best detections
 
-#### Farbkodierung:
-- 🟠 **Orange**: Katzen (`cat`)
-- 🟢 **Grün**: Hunde (`dog`)
-- 🔴 **Rot**: Personen (`person`)
-- 🔵 **Blau**: Vögel (`bird`)
-- 🟡 **Gelb**: Andere/Unbekannte Labels
+#### Color Coding:
+- 🟠 **Orange**: Cats (`cat`)
+- 🟢 **Green**: Dogs (`dog`)
+- 🔴 **Red**: People (`person`)
+- 🔵 **Blue**: Birds (`bird`)
+- 🟡 **Yellow**: Other/Unknown labels
 
-### Verwendung
+### Usage
 
-#### Grundlegende Verwendung:
+#### Basic Usage:
 ```bash
 python annotate_detections.py detection_results/Camera_Teich-20250907-155316-1757253196613-7_frames_detection_results.json
 ```
 
-#### Mit benutzerdefiniertem Ausgabeordner:
+#### With custom output directory:
 ```bash
-python annotate_detections.py detection_results.json --output-dir meine_annotationen
+python annotate_detections.py detection_results.json --output-dir my_annotations
 ```
 
-#### Mit OpenCV-Rendering (Alternative zu PIL):
+#### With OpenCV rendering (alternative to PIL):
 ```bash
 python annotate_detections.py detection_results.json --opencv
 ```
 
-#### Ohne Übersichtsbild:
+#### Without summary image:
 ```bash
 python annotate_detections.py detection_results.json --no-summary
 ```
 
-### Parameter
+### Parameters
 
-| Parameter | Beschreibung | Standard |
+| Parameter | Description | Default |
 |-----------|--------------|----------|
-| `json_file` | Pfad zur JSON-Datei mit Detektionsergebnissen | (erforderlich) |
-| `--output-dir`, `-o` | Ausgabeordner für annotierte Bilder | `annotated_<json_basename>` |
-| `--opencv` | Verwendet OpenCV statt PIL für Rendering | PIL |
-| `--no-summary` | Erstellt kein Übersichtsbild | Übersichtsbild erstellen |
+| `json_file` | Path to JSON file with detection results | (required) |
+| `--output-dir`, `-o` | Output directory for annotated images | `annotated_<json_basename>` |
+| `--opencv` | Use OpenCV instead of PIL for rendering | PIL |
+| `--no-summary` | Don't create summary image | Create summary image |
 
-### Ausgabe
+### Output
 
-Das Script erstellt:
+The script creates:
 
-1. **Annotierte Einzelbilder**: Jeder Frame mit Detektionen wird mit Bounding-Boxes versehen
+1. **Annotated Individual Images**: Each frame with detections gets bounding boxes
    - Format: `annotated_frame_XXXXXX.jpg`
-   - Enthält alle Detektionen mit Label und Confidence
+   - Contains all detections with labels and confidence scores
 
-2. **Übersichtsbild**: `detection_summary.jpg`
-   - Grid-Layout der besten Detektionen (höchste Confidence)
-   - Bis zu 9 Bilder in 3x3 Anordnung
-   - Thumbnail-Größe für schnelle Übersicht
+2. **Summary Image**: `detection_summary.jpg`
+   - Grid layout of best detections (highest confidence)
+   - Up to 9 images in 3x3 arrangement
+   - Thumbnail size for quick overview
 
-### Beispiel-Workflow
+### Example Workflow
 
-1. **Video analysieren** (mit ai-processor.py):
+1. **Analyze video** (with ai-processor.py):
    ```bash
-   python ai-processor.py mein_video.mp4
-   # Erstellt: detection_results/mein_video_detection_results.json
+   python ai-processor.py my_video.mp4
+   # Creates: detection_results/my_video_detection_results.json
    ```
 
-2. **Detektionen annotieren**:
+2. **Annotate detections**:
    ```bash
-   python annotate_detections.py detection_results/mein_video_detection_results.json
-   # Erstellt: annotated_mein_video_detection_results/
+   python annotate_detections.py detection_results/my_video_detection_results.json
+   # Creates: annotated_my_video_detection_results/
    ```
 
-3. **Ergebnisse betrachten**:
-   - Einzelne Frames: `annotated_mein_video_detection_results/annotated_frame_*.jpg`
-   - Übersicht: `annotated_mein_video_detection_results/detection_summary.jpg`
+3. **View results**:
+   - Individual frames: `annotated_my_video_detection_results/annotated_frame_*.jpg`
+   - Summary: `annotated_my_video_detection_results/detection_summary.jpg`
 
-### Technische Details
+### Technical Details
 
-#### Unterstützte Formate:
-- **Input**: JSON-Dateien von ai-processor.py
-- **Output**: JPEG-Bilder mit 95% Qualität
-- **Frame-Formate**: Alle von PIL/OpenCV unterstützten Formate
+#### Supported Formats:
+- **Input**: JSON files from ai-processor.py
+- **Output**: JPEG images with 95% quality
+- **Frame Formats**: All formats supported by PIL/OpenCV
 
 #### Performance:
-- **PIL-Modus**: Bessere Qualität, etwas langsamer
-- **OpenCV-Modus**: Schneller, für große Mengen geeignet
-- **Speicher**: Effizient, lädt nur jeweils ein Bild
+- **PIL Mode**: Better quality, slightly slower
+- **OpenCV Mode**: Faster, suitable for large quantities
+- **Memory**: Efficient, loads only one image at a time
 
-#### Fehlerbehandlung:
-- Fehlende Frame-Bilder werden übersprungen
-- Korrupte JSON-Dateien werden erkannt
-- Detaillierte Fehlermeldungen für Debugging
+#### Error Handling:
+- Missing frame images are skipped
+- Corrupt JSON files are detected
+- Detailed error messages for debugging
 
-### Anpassungen
+### Customization
 
-Das Script kann leicht angepasst werden:
+The script can be easily adapted:
 
-- **Farben ändern**: Bearbeiten Sie die `get_label_color()` Funktion
-- **Text-Stil**: Anpassen von `font_size`, `box_thickness` etc.
-- **Neue Labels**: Erweitern Sie die `color_map` in `get_label_color()`
-- **Output-Format**: Ändern Sie `quality` Parameter beim Speichern
+- **Change colors**: Edit the `get_label_color()` function
+- **Text style**: Adjust `font_size`, `box_thickness` etc.
+- **New labels**: Extend the `color_map` in `get_label_color()`
+- **Output format**: Change `quality` parameter when saving
 
-### Fehlerbehebung
+### Troubleshooting
 
-#### Häufige Probleme:
+#### Common Issues:
 
-1. **"Frame-Bild nicht gefunden"**:
-   - Frame-Pfade in JSON stimmen nicht mit tatsächlichen Dateien überein
-   - Frame-Bilder wurden verschoben oder gelöscht
+1. **"Frame image not found"**:
+   - Frame paths in JSON don't match actual files
+   - Frame images were moved or deleted
 
-2. **"Fehler beim Parsen der JSON-Datei"**:
-   - JSON-Datei ist beschädigt oder unvollständig
-   - Verwenden Sie einen JSON-Validator
+2. **"Error parsing JSON file"**:
+   - JSON file is corrupted or incomplete
+   - Use a JSON validator
 
-3. **Schrift-Probleme**:
-   - Script verwendet automatisch verfügbare System-Schriften
-   - Falls nötig, installieren Sie zusätzliche Schriftarten
+3. **Font issues**:
+   - Script automatically uses available system fonts
+   - Install additional fonts if needed
 
-#### Debug-Modus:
-Fügen Sie `print()` Statements hinzu, um den Verarbeitungsfortschritt zu verfolgen.
+#### Debug Mode:
+Add `print()` statements to track processing progress.
 
-### Ergebnis-Beispiel
+### Result Example
 
-Nach der Ausführung erhalten Sie:
+After execution you get:
 ```
 annotated_Camera_Teich-20250907-155316-1757253196613-7_frames_detection_results/
-├── annotated_frame_000390.jpg    # Hund mit grüner Bounding-Box
-├── annotated_frame_004710.jpg    # 3 Hunde-Detektionen
-├── annotated_frame_004740.jpg    # 4 Katzen-Detektionen (orange)
+├── annotated_frame_000390.jpg    # Dog with green bounding box
+├── annotated_frame_004710.jpg    # 3 dog detections
+├── annotated_frame_004740.jpg    # 4 cat detections (orange)
 ├── ...
-└── detection_summary.jpg         # Übersicht der besten Detektionen
+└── detection_summary.jpg         # Summary of best detections
 ```
 
-Jedes Bild zeigt die ursprünglichen Frames mit:
-- Farbige Bounding-Boxes um erkannte Objekte
-- Label und Confidence-Score über jeder Box
-- Optimierte Lesbarkeit durch Hintergrund-Boxen
+Each image shows the original frames with:
+- Colored bounding boxes around detected objects
+- Label and confidence score above each box
+- Optimized readability through background boxes

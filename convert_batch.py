@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 Video Batch Checker & Converter
-Überprüft alle Videodateien im Camera_Teich-Footage Ordner und prüft,
-ob entsprechende _frames Unterordner vorhanden sind.
-Konvertiert automatisch Videos ohne _frames Ordner mit convert_video_to_image_sequences.py.
+Checks all video files in the footage folder and verifies
+if corresponding _frames subfolders exist.
+Automatically converts videos without _frames folders using convert_video_to_image_sequences.py.
 """
 
 import os
