@@ -59,6 +59,55 @@ python ai-processor.py --model yolo --yolo-model yolo11l.pt /path/to/video.mp4
 | `yolo11l.pt` | Large | Slow | Excellent | High accuracy |
 | `yolo11x.pt` | Extra Large | Very slow | Best | Maximum precision |
 
+### Using YOLO Models
+
+#### Quick Start with YOLO
+```bash
+# Basic YOLO usage (uses yolo11n.pt by default)
+python ai-processor.py --model yolo /path/to/video.mp4
+
+# Or process frame folders directly
+python ai-processor.py --model yolo /path/to/video_frames/
+```
+
+#### Specifying YOLO Model Variants
+```bash
+# Use nano model (fastest, lowest accuracy)
+python ai-processor.py --model yolo --yolo-model yolo8n.pt /path/to/video.mp4
+
+# Use small model (good balance)
+python ai-processor.py --model yolo --yolo-model yolo11s.pt /path/to/video.mp4
+
+# Use large model (high accuracy)
+python ai-processor.py --model yolo --yolo-model yolo12l.pt /path/to/video.mp4
+
+# Use extra large model (maximum accuracy)
+python ai-processor.py --model yolo --yolo-model yolo12x.pt /path/to/video.mp4
+```
+
+#### YOLO Model Download
+YOLO models are automatically downloaded on first use:
+- Models are cached in your local environment
+- First run may take longer due to download
+- Subsequent runs use cached models for faster startup
+
+#### YOLO vs OWLv2 Comparison
+```bash
+# Process same video with both models for comparison
+python ai-processor.py --model owlv2 /path/to/video.mp4
+python ai-processor.py --model yolo /path/to/video.mp4
+
+# Results will be saved in separate folders:
+# - detection_results-owlv2/
+# - detection_results-yolo/
+```
+
+#### Performance Recommendations
+- **Large datasets**: Use `yolo11n.pt` or `yolo11s.pt` for speed
+- **High accuracy needed**: Use `yolo11l.pt` or `yolo11x.pt`
+- **GPU available**: All YOLO models benefit significantly from GPU acceleration
+- **CPU only**: Nano and Small models are most practical
+
 #### Detection Process
 1. **Frame Loading**: Sequential processing of extracted image sequence
 2. **AI Analysis**: Object detection with configurable threshold (0.1)
