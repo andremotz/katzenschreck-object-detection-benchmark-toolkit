@@ -231,10 +231,20 @@ Examples:
     print(f"📹 Input video: {args.video_path}")
     print(f"📁 Frame directory: {frames_dir}")
     
-    # Determine result JSON - use absolute paths
+    # Determine result JSON - use absolute paths (with model suffix)
     frames_folder_name = os.path.basename(frames_dir)
     frames_parent_dir = os.path.abspath(os.path.dirname(frames_dir))
-    result_json = os.path.join(frames_parent_dir, f"{frames_folder_name}_detection_results.json")
+    # Default model is owlv2, check in detection_results folder
+    result_json_owlv2 = os.path.join(frames_parent_dir, f"detection_results/{frames_folder_name}_detection_results_owlv2.json")
+    result_json_legacy = os.path.join(frames_parent_dir, f"{frames_folder_name}_detection_results.json")
+    
+    # Check which result file exists
+    if os.path.exists(result_json_owlv2):
+        result_json = result_json_owlv2
+    elif os.path.exists(result_json_legacy):
+        result_json = result_json_legacy
+    else:
+        result_json = result_json_owlv2  # Default to new format
     
     if os.path.exists(result_json):
         print(f"📊 Results: {result_json}")

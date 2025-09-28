@@ -97,9 +97,9 @@ YOLO models are automatically downloaded on first use:
 python ai-processor.py --model owlv2 /path/to/video.mp4
 python ai-processor.py --model yolo /path/to/video.mp4
 
-# Results will be saved in separate folders:
-# - detection_results-owlv2/
-# - detection_results-yolo/
+# Results will be saved in the same folder with specific model suffixes:
+# - detection_results/video_detection_results_owlv2.json
+# - detection_results/video_detection_results_yolo12x.json
 ```
 
 #### Performance Recommendations
@@ -119,19 +119,19 @@ python ai-processor.py --model yolo /path/to/video.mp4
 - **Metadata**: Processing statistics and configuration parameters (including used model)
 - **Detailed Logs**: Progress display with time estimates
 - **Performance Metrics**: Detection rate and processing speed
-- **Model-specific Folders**: Separate storage for each AI model used
+- **Model-specific Files**: JSON files with model suffix for easy identification
 
 #### Results Folder Structure
 ```
 /path/to/video/
 ├── video.mp4
-├── detection_results-owlv2/     # OWLv2 results
-│   └── video_detection_results.json
-└── detection_results-yolo/      # YOLO results
-    └── video_detection_results.json
+└── detection_results/           # All detection results
+    ├── video_detection_results_owlv2.json
+    ├── video_detection_results_yolo12x.json
+    └── video_detection_results_yolo11n.json
 ```
 
-This enables parallel processing with both models and direct comparison of results.
+This enables parallel processing with both models and direct comparison of results in a single folder.
 
 ### 3. Results Data Structure
 

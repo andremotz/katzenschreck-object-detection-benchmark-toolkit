@@ -149,7 +149,7 @@ def process_frame_with_fallback_yolo(model, device, image, target_classes):
         return False, [], None
 
 
-def process_video_directly(video_path, processor, model, device, text_labels, model_type='owlv2'):
+def process_video_directly(video_path, processor, model, device, text_labels, model_type='owlv2', model_identifier='owlv2'):
     """
     Verarbeitet ein Video direkt ohne Frame-Zwischenspeicherung
     
@@ -208,7 +208,7 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
             "frames_with_detections": 0,
             "detection_threshold": 0.1,
             "text_labels": text_labels[0],
-            "model_type": model_type,
+            "model_type": model_identifier,
             "processing_method": "direct_video_stream"
         },
         "detections": []
@@ -430,6 +430,13 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     model_type = args.model
     yolo_model_name = args.yolo_model
     
+    # Create specific model identifier for filenames and metadata
+    if model_type == 'yolo':
+        # Extract model name without .pt extension for cleaner naming
+        model_identifier = yolo_model_name.replace('.pt', '')
+    else:
+        model_identifier = 'owlv2'
+    
     # Validierung des Input-Pfades
     if not os.path.exists(input_path):
         print(f"Error: The specified path '{input_path}' does not exist.")
@@ -493,7 +500,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         print(f"Erkannter Input-Typ: Video")
         print(f"Verarbeite Video direkt ohne Frame-Zwischenspeicherung...")
         
-        success, results_data = process_video_directly(input_path, processor, model, device, text_labels, model_type)
+        success, results_data = process_video_directly(input_path, processor, model, device, text_labels, model_type, model_identifier)
         if not success:
             print("Error in video processing")
             sys.exit(EXIT_VIDEO_PROCESSING_FAILED)
@@ -534,7 +541,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 "frames_with_detections": 0,
                 "detection_threshold": 0.1,
                 "text_labels": text_labels[0],
-                "model_type": model_type,
+                "model_type": model_identifier,
                 "processing_method": "frame_sequence"
             },
             "detections": []
@@ -689,20 +696,20 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 print(f"Error processing {frame_path}: {e}")
                 continue
 
-    # JSON-Datei schreiben - Name basierend auf Input, Ordner basierend auf Modell
+    # JSON-Datei schreiben - Name basierend auf Input mit Modell-Suffix
     if input_type == 'video':
-        # For videos: Name based on video filename
+        # For videos: Name based on video filename with model suffix
         video_name = Path(input_path).stem
-        output_filename = f"{video_name}_detection_results.json"
+        output_filename = f"{video_name}_detection_results_{model_identifier}.json"
         parent_dir = Path(input_path).parent
     else:
-        # For frame folders: Name based on folder name
+        # For frame folders: Name based on folder name with model suffix
         folder_name = os.path.basename(input_path)
-        output_filename = f"{folder_name}_detection_results.json"
+        output_filename = f"{folder_name}_detection_results_{model_identifier}.json"
         parent_dir = os.path.dirname(input_path)
     
-    # JSON-Datei im modell-spezifischen detection_results Verzeichnis speichern
-    detection_results_dir = os.path.join(parent_dir, f"detection_results-{model_type}")
+    # JSON-Datei im detection_results Verzeichnis speichern
+    detection_results_dir = os.path.join(parent_dir, "detection_results")
     os.makedirs(detection_results_dir, exist_ok=True)
     output_path = os.path.join(detection_results_dir, output_filename)
 
