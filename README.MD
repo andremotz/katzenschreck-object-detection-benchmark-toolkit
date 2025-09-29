@@ -31,8 +31,8 @@ The script supports two different object detection models:
 - **Advantages**: More flexible class definition, better text-based object detection
 - **Disadvantages**: Slower processing
 
-**YOLO v11/v12 (Optional)**
-- **Models**: `yolo11n.pt`, `yolo11s.pt`, `yolo11m.pt`, `yolo11l.pt`, `yolo11x.pt`
+**YOLO v8/v11/v12 (Optional)**
+- **Models**: `yolo8n.pt`, `yolo8s.pt`, `yolo8m.pt`, `yolo8l.pt`, `yolo8x.pt`, `yolo11n.pt`, `yolo11s.pt`, `yolo11m.pt`, `yolo11l.pt`, `yolo11x.pt`
 - **Framework**: Ultralytics YOLO
 - **Detection Categories**: Cats and dogs (from 80 COCO classes)
 - **Advantages**: Significantly faster processing, better performance
@@ -46,13 +46,21 @@ python ai-processor.py /path/to/video.mp4
 # Use YOLO (faster)
 python ai-processor.py --model yolo /path/to/video.mp4
 
-# Use specific YOLO model
+# Use specific YOLO model (YOLOv8x - default)
+python ai-processor.py --model yolo --yolo-model yolo8x.pt /path/to/video.mp4
+
+# Use YOLOv11 model
 python ai-processor.py --model yolo --yolo-model yolo11l.pt /path/to/video.mp4
 ```
 
 #### YOLO Model Overview
 | Model | Size | Speed | Accuracy | Usage |
 |--------|-------|----------------|-------------|------------|
+| `yolo8n.pt` | Nano | Very fast | Basic | Quick tests |
+| `yolo8s.pt` | Small | Fast | Good | Production use |
+| `yolo8m.pt` | Medium | Medium | Very good | Balanced solution |
+| `yolo8l.pt` | Large | Slow | Excellent | High accuracy |
+| `yolo8x.pt` | Extra Large | Very slow | Best | Maximum precision (default) |
 | `yolo11n.pt` | Nano | Very fast | Basic | Quick tests |
 | `yolo11s.pt` | Small | Fast | Good | Production use |
 | `yolo11m.pt` | Medium | Medium | Very good | Balanced solution |

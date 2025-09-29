@@ -54,6 +54,28 @@ def clear_memory(device):
         torch.mps.synchronize()
 
 
+def ensure_yolo_model_downloaded(model_name):
+    """
+    Ensures that the specified YOLO model is downloaded and available
+    
+    Args:
+        model_name (str): Name of the YOLO model (e.g., 'yolo8x.pt')
+    
+    Returns:
+        str: Path to the downloaded model file
+    """
+    try:
+        # Try to load the model - this will automatically download if not present
+        print(f"Überprüfe YOLO-Modell: {model_name}...")
+        model = YOLO(model_name)
+        print(f"YOLO-Modell {model_name} erfolgreich geladen/heruntergeladen")
+        # Return the model object instead of just the name
+        return model
+    except Exception as e:
+        print(f"Fehler beim Laden/Herunterladen des YOLO-Modells {model_name}: {e}")
+        raise e
+
+
 def process_frame_with_fallback_owlv2(processor, model, device, image, text_labels):
     """
     Attempts frame processing with OWLv2 and robust error handling
@@ -422,7 +444,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     parser.add_argument(
         '--yolo-model',
         default='yolo12x.pt',
-        help='YOLO-Modell-Datei (default: yolo11n.pt). Kann auch yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt sein'
+        help='YOLO-Modell-Datei (default: yolo12x.pt). Kann auch yolov8n.pt, yolov8s.pt, yolov8m.pt, yolov8l.pt, yolov8x.pt, yolo11n.pt, yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt, yolo12n.pt, yolo12s.pt, yolo12m.pt, yolo12l.pt, yolo12x.pt sein'
     )
     
     args = parser.parse_args()
@@ -463,7 +485,8 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         
         print(f"Lade YOLO-Modell: {yolo_model_name}...")
         try:
-            model = YOLO(yolo_model_name)
+            # Ensure model is downloaded and load it
+            model = ensure_yolo_model_downloaded(yolo_model_name)
             print(f"YOLO-Modell erfolgreich geladen")
         except Exception as e:
             print(f"Error loading YOLO model: {e}")
