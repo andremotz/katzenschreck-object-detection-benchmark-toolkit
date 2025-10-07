@@ -3,7 +3,7 @@
 Video Batch Checker & Converter
 Checks all video files in the footage folder and verifies
 if corresponding _frames subfolders exist.
-Automatically converts videos without _frames folders using convert_video_to_image_sequences.py.
+Automatically converts videos without _frames folders using convert_video_to_image_sequence.py.
 """
 
 import os
@@ -60,18 +60,18 @@ def check_frames_folder(video_file):
 
 def convert_video_to_frames(video_file, script_path):
     """
-    Führt convert_video_to_image_sequences.py für eine Videodatei aus
+    Führt convert_video_to_image_sequence.py für eine Videodatei aus
     
     Args:
         video_file (Path): Pfad zur Videodatei
-        script_path (Path): Pfad zum convert_video_to_image_sequences.py Script
+        script_path (Path): Pfad zum convert_video_to_image_sequence.py Script
     
     Returns:
         tuple: (success, output) - (Erfolgreich, Ausgabe des Scripts)
     """
     try:
         print(f"🔄 Konvertiere: {video_file.name}")
-        print(f"   Starte convert_video_to_image_sequences.py...")
+        print(f"   Starte convert_video_to_image_sequence.py...")
         
         # Script mit der Videodatei als Parameter ausführen
         result = subprocess.run([
@@ -82,10 +82,24 @@ def convert_video_to_frames(video_file, script_path):
         
         if result.returncode == 0:
             print(f"   ✅ Erfolgreich konvertiert!")
+            # Zeige den kompletten Output von convert_video_to_image_sequence.py
+            if result.stdout.strip():
+                print("   📋 Output von convert_video_to_image_sequence.py:")
+                print("   " + "="*50)
+                for line in result.stdout.strip().split('\n'):
+                    print(f"   {line}")
+                print("   " + "="*50)
             return True, result.stdout
         else:
             print(f"   ❌ Fehler bei der Konvertierung!")
             print(f"   Fehlerausgabe: {result.stderr}")
+            # Zeige auch den stdout bei Fehlern (falls vorhanden)
+            if result.stdout.strip():
+                print("   📋 Output von convert_video_to_image_sequence.py:")
+                print("   " + "="*50)
+                for line in result.stdout.strip().split('\n'):
+                    print(f"   {line}")
+                print("   " + "="*50)
             return False, result.stderr
             
     except subprocess.TimeoutExpired:
@@ -102,13 +116,13 @@ def main():
     # Standard-Pfad zum Camera_Teich-Footage Ordner - absolute Pfad verwenden
     default_footage_dir = os.path.abspath("/Volumes/documents/Camera_Teich-Footage")
     
-    # Pfad zum convert_video_to_image_sequences.py Script
+    # Pfad zum convert_video_to_image_sequence.py Script
     script_dir = Path(__file__).parent
-    converter_script = script_dir / "convert_video_to_image_sequences.py"
+    converter_script = script_dir / "convert_video_to_image_sequence.py"
     
     # Prüfen ob das Converter-Script existiert
     if not converter_script.exists():
-        print(f"❌ Fehler: convert_video_to_image_sequences.py nicht gefunden in {script_dir}")
+        print(f"❌ Fehler: convert_video_to_image_sequence.py nicht gefunden in {script_dir}")
         print("   Das Script muss im gleichen Verzeichnis sein!")
         return
     

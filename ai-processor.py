@@ -1,3 +1,32 @@
+#!/usr/bin/env python3
+"""
+AI Object Detection Script for Videos and Frame Sequences
+
+This script uses modern AI models (OWLv2 or YOLO) for automatic object detection 
+in videos or image sequences. It was specifically developed for cat detection 
+but can also recognize other objects.
+
+Main Features:
+- Direct video processing without intermediate storage
+- Frame sequence processing (frame_*.jpg)
+- Support for OWLv2 (Google) and YOLO models
+- Automatic GPU/CPU detection and optimization
+- Robust error handling and memory management
+- Detailed progress display with time estimation
+- JSON export of detection results
+
+Supported Input Formats:
+- Videos: .mp4, .avi, .mov, .mkv, .wmv, .flv, .webm, .m4v
+- Frame folders: Folders with frame_*.jpg files
+
+Usage:
+    python ai-processor.py /path/to/video.mp4
+    python ai-processor.py /path/to/frames/folder --model yolo --yolo-model yolo12x.pt
+
+Author: AI Assistant
+Version: 1.0
+"""
+
 import os
 import glob
 import json
