@@ -10,14 +10,14 @@ import sys
 from pathlib import Path
 
 
-def convert_video_to_images(video_path, output_dir=None, quality=95):
+def convert_video_to_images(video_path, output_dir=None, quality=75):
     """
     Konvertiert ein Video in eine Bildsequenz
     
     Args:
         video_path (str): Pfad zum Input-Video
         output_dir (str, optional): Output-Verzeichnis. Falls None, wird automatisch erstellt
-        quality (int): JPEG Qualität (1-100, Standard: 95)
+        quality (int): JPEG Qualität (1-100, Standard: 75)
     
     Returns:
         tuple: (success, frame_count, output_directory)
@@ -127,7 +127,7 @@ def main():
     
     # Optionale Parameter
     output_dir = sys.argv[2] if len(sys.argv) > 2 else None
-    quality = int(sys.argv[3]) if len(sys.argv) > 3 else 95
+    quality = int(sys.argv[3]) if len(sys.argv) > 3 else 75
     
     # Konvertierung starten
     success, frame_count, output_path = convert_video_to_images(
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     print("Parameter:")
     print("  video_pfad:  Pfad zum Input-Video (optional, Standard ist das angegebene Video)")
     print("  output_dir:  Output-Verzeichnis (optional, wird automatisch erstellt)")
-    print("  qualität:    JPEG-Qualität 1-100 (optional, Standard: 95)")
+    print("  qualität:    JPEG-Qualität 1-100 (optional, Standard: 75)")
     print()
     
     main()
