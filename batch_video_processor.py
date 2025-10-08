@@ -15,7 +15,7 @@ Usage:
     python batch_video_processor.py /path/to/video/directory --model yolo --yolo-model yolo12x.pt
     python batch_video_processor.py /path/to/video/directory --skip-frames 5
     python batch_video_processor.py /path/to/video/directory --skip-conversion --skip-detection
-    python batch_video_processor.py /path/to/video/directory --skip-conversion --model yolo --yolo-model yolo12x.pt
+    python batch_video_processor.py /path/to/video/directory --skip-frames 12 --model yolo --yolo-model yolo12x.pt --skip-conversion
 
 Author: Andre Motz
 Version: 1.0
@@ -236,8 +236,10 @@ def process_single_video(video_path, model_type='owlv2', yolo_model='yolo12x.pt'
                 stats['frames_dir'] = str(frames_dir)
                 print(f"✅ Frame directory found: {len(frame_files)} frames")
             else:
-                stats['error'] = "Frame directory not found and conversion skipped"
-                return stats
+                # No frame directory found - process video directly
+                print(f"⚠️  Frame directory not found, will process video directly")
+                stats['frames_dir'] = video_path
+                stats['conversion_success'] = True  # Mark as successful since we'll process the video directly
         
         # Step 2: AI detection (if not skipped)
         if not skip_detection:
