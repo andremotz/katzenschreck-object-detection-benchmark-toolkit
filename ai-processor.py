@@ -22,6 +22,7 @@ Supported Input Formats:
 Usage:
     python ai-processor.py /path/to/video.mp4
     python ai-processor.py /path/to/frames/folder --model yolo --yolo-model yolo12x.pt
+    python ai-processor.py /path/to/video.mp4 --skip-frames 5  # 5x faster processing
 
 Author: AI Assistant
 Version: 1.0
@@ -64,6 +65,51 @@ EXIT_JSON_WRITE_FAILED = 8        # JSON file could not be written
 EXIT_CRITICAL_ERROR = 9           # Critical unknown error
 
 
+def resize_to_fullhd(image):
+    """
+    Resizes an image to Full HD (1920x1080) while maintaining aspect ratio
+    
+    Args:
+        image: PIL Image object
+    
+    Returns:
+        PIL Image: Resized image to Full HD
+    """
+    # Full HD dimensions
+    target_width = 1920
+    target_height = 1080
+    
+    # Get current dimensions
+    current_width, current_height = image.size
+    
+    # Calculate scaling factor to fit within Full HD while maintaining aspect ratio
+    scale_w = target_width / current_width
+    scale_h = target_height / current_height
+    scale = min(scale_w, scale_h)  # Use the smaller scale to ensure it fits
+    
+    # Calculate new dimensions
+    new_width = int(current_width * scale)
+    new_height = int(current_height * scale)
+    
+    # Resize the image
+    resized_image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+    
+    # If the image is smaller than Full HD, create a black canvas and center the image
+    if new_width < target_width or new_height < target_height:
+        # Create a black canvas with Full HD dimensions
+        canvas = Image.new('RGB', (target_width, target_height), (0, 0, 0))
+        
+        # Calculate position to center the resized image
+        x_offset = (target_width - new_width) // 2
+        y_offset = (target_height - new_height) // 2
+        
+        # Paste the resized image onto the canvas
+        canvas.paste(resized_image, (x_offset, y_offset))
+        return canvas
+    
+    return resized_image
+
+
 def clear_memory(device):
     """
     Clears GPU/MPS memory to avoid out-of-memory errors
@@ -95,13 +141,13 @@ def ensure_yolo_model_downloaded(model_name):
     """
     try:
         # Try to load the model - this will automatically download if not present
-        print(f"Überprüfe YOLO-Modell: {model_name}...")
+        print(f"Checking YOLO model: {model_name}...")
         model = YOLO(model_name)
-        print(f"YOLO-Modell {model_name} erfolgreich geladen/heruntergeladen")
+        print(f"YOLO model {model_name} successfully loaded/downloaded")
         # Return the model object instead of just the name
         return model
     except Exception as e:
-        print(f"Fehler beim Laden/Herunterladen des YOLO-Modells {model_name}: {e}")
+        print(f"Error loading/downloading YOLO model {model_name}: {e}")
         raise e
 
 
@@ -136,14 +182,14 @@ def process_frame_with_fallback_yolo(model, device, image, target_classes):
             boxes = result.boxes
             if boxes is not None:
                 for box in boxes:
-                    # YOLO Klassen-ID zu Name konvertieren
+                    # Convert YOLO class ID to name
                     class_id = int(box.cls.cpu().numpy())
                     class_name = model.names[class_id]
                     confidence = float(box.conf.cpu().numpy())
                     
                     # Only consider relevant classes
                     if class_name in target_classes and confidence > 0.1:
-                        # Bounding Box Koordinaten (x1, y1, x2, y2)
+                        # Bounding box coordinates (x1, y1, x2, y2)
                         coords = box.xyxy.cpu().numpy()[0]
                         
                         detection = {
@@ -165,16 +211,17 @@ def process_frame_with_fallback_yolo(model, device, image, target_classes):
         return False, [], None
 
 
-def process_video_directly(video_path, processor, model, device, text_labels, model_type='yolo', model_identifier='yolo'):
+def process_video_directly(video_path, processor, model, device, text_labels, model_type='yolo', model_identifier='yolo', skip_frames=1):
     """
-    Verarbeitet ein Video direkt ohne Frame-Zwischenspeicherung
+    Processes a video directly without intermediate frame storage
     
     Args:
-        video_path (str): Pfad zum Input-Video
+        video_path (str): Path to the input video
         processor: The AI processor for object detection
         model: The AI model for object detection
         device: The compute device (CPU/GPU)
         text_labels: List of objects to detect
+        skip_frames (int): Process only every N-th frame (default: 1)
     
     Returns:
         tuple: (success, results_data)
@@ -192,21 +239,23 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
         print(f"Error: Could not open video: {video_path}")
         sys.exit(EXIT_VIDEO_OPEN_FAILED)
     
-    # Video-Eigenschaften
+    # Video properties
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fps = cap.get(cv2.CAP_PROP_FPS)
     duration = total_frames / fps if fps > 0 else 0
     
-    print(f"Video-Informationen:")
-    print(f"  Datei: {video_path}")
-    print(f"  Frames gesamt: {total_frames}")
+    print(f"Video Information:")
+    print(f"  File: {video_path}")
+    print(f"  Total frames: {total_frames}")
     print(f"  FPS: {fps:.2f}")
-    print(f"  Dauer: {duration:.2f} Sekunden")
+    print(f"  Duration: {duration:.2f} seconds")
     print(f"  Processing: Directly from video stream")
+    if skip_frames > 1:
+        print(f"  Skip-Frames: Processing only every {skip_frames}. frame ({total_frames // skip_frames} frames)")
     print()
     
     # JSON data structure for results
-    # Absoluten Pfad zum Video verwenden
+    # Use absolute path to video
     absolute_video_path = os.path.abspath(video_path)
     
     results_data = {
@@ -220,6 +269,7 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
                 "duration_seconds": duration
             },
             "frames_to_process": total_frames,
+            "skip_frames": skip_frames,
             "processed_frames": 0,
             "frames_with_detections": 0,
             "detection_threshold": 0.1,
@@ -232,6 +282,7 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
     
     # Counter for progress display  
     processed_count = 0
+    frame_counter = 0  # Counts all read frames
     local_start_time = datetime.now()
     
     print(f"\nStarting processing at {local_start_time.strftime('%H:%M:%S')}...")
@@ -244,28 +295,39 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
             if not ret:
                 break
             
-            # OpenCV Frame (BGR) zu PIL Image (RGB) konvertieren
+            # Increment frame counter
+            frame_counter += 1
+            
+            # Skip frames based on skip_frames parameter
+            if (frame_counter - 1) % skip_frames != 0:
+                continue
+            
+            # Convert OpenCV frame (BGR) to PIL Image (RGB)
             frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             image = Image.fromarray(frame_rgb)
+            
+            # Scale frame to Full HD
+            # image = resize_to_fullhd(image)
             
             # Count frame processing
             processed_count += 1
             results_data["metadata"]["processed_frames"] = processed_count
             
             # Progress bar
-            progress_percent = (processed_count / total_frames) * 100
+            expected_total = total_frames // skip_frames
+            progress_percent = (processed_count / expected_total) * 100 if expected_total > 0 else 0
             elapsed_time = datetime.now() - local_start_time
             
             # Calculate estimated remaining time
             if processed_count > 0:
                 avg_time_per_frame = elapsed_time.total_seconds() / processed_count
-                remaining_frames = total_frames - processed_count
+                remaining_frames = expected_total - processed_count
                 estimated_remaining = remaining_frames * avg_time_per_frame
                 remaining_str = str(timedelta(seconds=int(estimated_remaining)))
             else:
-                remaining_str = "unbekannt"
+                remaining_str = "unknown"
             
-            print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{total_frames}) | Frame {processed_count-1:6d} | Restzeit: {remaining_str}", end="", flush=True)
+            print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{expected_total}) | Frame {frame_counter-1:6d} | Remaining: {remaining_str}", end="", flush=True)
             
             # AI processing with YOLO only
             target_classes = text_labels[0] if isinstance(text_labels[0], list) else text_labels
@@ -279,8 +341,8 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
             
             # Add frame data to JSON
             frame_data = {
-                "frame_number": processed_count - 1,
-                "frame_timestamp": (processed_count - 1) / fps if fps > 0 else 0,
+                "frame_number": frame_counter - 1,
+                "frame_timestamp": (frame_counter - 1) / fps if fps > 0 else 0,
                 "image_size": {
                     "width": image.width,
                     "height": image.height
@@ -292,11 +354,11 @@ def process_video_directly(video_path, processor, model, device, text_labels, mo
             if len(detections) > 0:
                 results_data["detections"].append(frame_data)
                 results_data["metadata"]["frames_with_detections"] += 1
-                print(f" -> {len(detections)} Detektion(en)!")
+                print(f" -> {len(detections)} detection(s)!")
             else:
-                print(" -> keine Detektionen")
+                print(" -> no detections")
             
-            # Memory-Management: Alle 10 Frames Memory leeren (aggressiver)
+            # Memory management: Clear memory every 10 frames (aggressive)
             if processed_count % 10 == 0:
                 clear_memory(device)
                 
@@ -319,7 +381,7 @@ def detect_input_type(input_path):
     Automatically detects if input is a video or a folder with frames
     
     Args:
-        input_path (str): Pfad zum Input
+        input_path (str): Path to the input
     
     Returns:
         str: 'video', 'frames', or 'unknown'
@@ -342,21 +404,24 @@ def detect_input_type(input_path):
 
 
 def main():
-    # Argument Parser einrichten
+    # Setup argument parser
     parser = argparse.ArgumentParser(
         description='AI-based object detection for videos or frame sequences',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
-Beispiele:
-  # Video verarbeiten (direkt aus Video-Stream):
-  python ai-processor.py /pfad/zum/video.mp4
+Examples:
+  # Process video (directly from video stream):
+  python ai-processor.py /path/to/video.mp4
   python ai-processor.py "/Users/name/Downloads/video.mp4"
   
-  # Frame-Ordner verarbeiten:
-  python ai-processor.py /pfad/zum/frames/ordner
+  # Process frame folder:
+  python ai-processor.py /path/to/frames/folder
   python ai-processor.py "/Users/name/Downloads/Camera_Teich-frames"
   
-Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherung.
+  # Process video with skip-frames (5x faster):
+  python ai-processor.py /path/to/video.mp4 --skip-frames 5
+  
+Note: Videos are processed directly from the stream without intermediate storage.
         '''
     )
     parser.add_argument(
@@ -372,13 +437,20 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     parser.add_argument(
         '--yolo-model',
         default='yolo12x.pt',
-        help='YOLO-Modell-Datei (default: yolo12x.pt). Kann auch yolov8n.pt, yolov8s.pt, yolov8m.pt, yolov8l.pt, yolov8x.pt, yolo11n.pt, yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt, yolo12n.pt, yolo12s.pt, yolo12m.pt, yolo12l.pt, yolo12x.pt sein'
+        help='YOLO model file (default: yolo12x.pt). Can also be yolov8n.pt, yolov8s.pt, yolov8m.pt, yolov8l.pt, yolov8x.pt, yolo11n.pt, yolo11s.pt, yolo11m.pt, yolo11l.pt, yolo11x.pt, yolo12n.pt, yolo12s.pt, yolo12m.pt, yolo12l.pt, yolo12x.pt'
+    )
+    parser.add_argument(
+        '--skip-frames',
+        type=int,
+        default=1,
+        help='Process only every N-th frame (default: 1 = all frames). For 5x speed: --skip-frames 5'
     )
     
     args = parser.parse_args()
     input_path = args.input_path
     model_type = args.model
     yolo_model_name = args.yolo_model
+    skip_frames = args.skip_frames
     
     # Create specific model identifier for filenames and metadata
     if model_type == 'yolo':
@@ -387,18 +459,18 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     else:
         model_identifier = 'owlv2'
     
-    # Validierung des Input-Pfades
+    # Validate input path
     if not os.path.exists(input_path):
         print(f"Error: The specified path '{input_path}' does not exist.")
         sys.exit(EXIT_INPUT_NOT_FOUND)
     
-    # Input-Typ erkennen
+    # Detect input type
     input_type = detect_input_type(input_path)
     
     if input_type == 'unknown':
         print(f"Error: Unknown input type. Supported formats:")
         print("  - Videos: .mp4, .avi, .mov, .mkv, .wmv, .flv, .webm, .m4v")
-        print("  - Frame-Ordner: Ordner mit frame_*.jpg Dateien")
+        print("  - Frame folders: Folders with frame_*.jpg files")
         sys.exit(EXIT_UNKNOWN_INPUT_TYPE)
     
     # Load YOLO model only
@@ -407,25 +479,25 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     
     if not YOLO_AVAILABLE:
         print("Error: YOLO is required but ultralytics is not installed.")
-        print("Installiere mit: pip install ultralytics")
+        print("Install with: pip install ultralytics")
         sys.exit(EXIT_MODEL_LOADING_FAILED)
     
-    print(f"Lade YOLO-Modell: {yolo_model_name}...")
+    print(f"Loading YOLO model: {yolo_model_name}...")
     try:
         # Ensure model is downloaded and load it
         model = ensure_yolo_model_downloaded(yolo_model_name)
-        print(f"YOLO-Modell erfolgreich geladen")
+        print(f"YOLO model successfully loaded")
     except Exception as e:
         print(f"Error loading YOLO model: {e}")
         sys.exit(EXIT_MODEL_LOADING_FAILED)
     
     # Check and activate GPU support
     device = torch.device("cuda" if torch.cuda.is_available() else "mps" if torch.backends.mps.is_available() else "cpu")
-    print(f"Verwendetes Device: {device}")
+    print(f"Using device: {device}")
     
     # YOLO models handle device assignment automatically
     
-    # Memory bereinigen vor dem Start
+    # Clear memory before start
     clear_memory(device)
     print(f"Memory cache cleared for optimal performance")
     
@@ -434,20 +506,20 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
     # Start time for entire processing
     start_time = datetime.now()
     
-    # Je nach Input-Typ unterschiedlich verarbeiten
+    # Process based on input type
     if input_type == 'video':
-        print(f"Erkannter Input-Typ: Video")
-        print(f"Verarbeite Video direkt ohne Frame-Zwischenspeicherung...")
+        print(f"Detected input type: Video")
+        print(f"Processing video directly without intermediate frame storage...")
         
-        success, results_data = process_video_directly(input_path, processor, model, device, text_labels, model_type, model_identifier)
+        success, results_data = process_video_directly(input_path, processor, model, device, text_labels, model_type, model_identifier, skip_frames)
         if not success:
             print("Error in video processing")
             sys.exit(EXIT_VIDEO_PROCESSING_FAILED)
     else:
-        print(f"Erkannter Input-Typ: Frame-Sequenz")
+        print(f"Detected input type: Frame sequence")
         frames_folder = input_path
         
-        print(f"Modell geladen. Verarbeite Frames aus: {frames_folder}")
+        print(f"Model loaded. Processing frames from: {frames_folder}")
 
         # Find and sort all frame images
         frame_pattern = os.path.join(frames_folder, "frame_*.jpg")
@@ -459,12 +531,16 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
 
         print(f"Found: {len(frame_files)} frame images")
 
-        # Alle Frames werden verarbeitet
+        # Filter frames based on skip_frames parameter
+        if skip_frames > 1:
+            frame_files = frame_files[::skip_frames]
+            print(f"Skip-Frames: Processing only every {skip_frames}. frame")
+        
         frames_to_process = len(frame_files)
         print(f"Frames to be processed: {frames_to_process}")
 
         # JSON data structure for results
-        # Absolute Pfade verwenden
+        # Use absolute paths
         absolute_input_path = os.path.abspath(input_path)
         absolute_frames_folder = os.path.abspath(frames_folder)
         
@@ -476,6 +552,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 "frames_folder": absolute_frames_folder,
                 "total_frames": len(frame_files),
                 "frames_to_process": frames_to_process,
+                "skip_frames": skip_frames,
                 "processed_frames": 0,
                 "frames_with_detections": 0,
                 "detection_threshold": 0.1,
@@ -493,13 +570,16 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         print(f"\nStarting processing at {local_start_time.strftime('%H:%M:%S')}...")
         print("="*60)
 
-        # Jeden Frame verarbeiten
+        # Process each frame
         for i, frame_path in enumerate(frame_files):
             try:
-                # Bild direkt laden
+                # Load image directly
                 image = Image.open(frame_path)
                 
-                # Frame-Nummer aus Dateiname extrahieren
+                # Scale frame to Full HD
+                image = resize_to_fullhd(image)
+                
+                # Extract frame number from filename
                 frame_filename = os.path.basename(frame_path)
                 frame_number = int(frame_filename.split('_')[1].split('.')[0])
                 
@@ -507,7 +587,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 processed_count += 1
                 results_data["metadata"]["processed_frames"] = processed_count
                 
-                # Fortschrittsanzeige
+                # Progress display
                 progress_percent = (processed_count / frames_to_process) * 100
                 elapsed_time = datetime.now() - local_start_time
                 
@@ -518,9 +598,9 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                     estimated_remaining = remaining_frames * avg_time_per_frame
                     remaining_str = str(timedelta(seconds=int(estimated_remaining)))
                 else:
-                    remaining_str = "unbekannt"
+                    remaining_str = "unknown"
                 
-                print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{frames_to_process}) | Frame {frame_number:6d} | Restzeit: {remaining_str}", end="", flush=True)
+                print(f"Progress: {progress_percent:5.1f}% ({processed_count:3d}/{frames_to_process}) | Frame {frame_number:6d} | Remaining: {remaining_str}", end="", flush=True)
                 
                 # AI processing with YOLO only
                 target_classes = text_labels[0] if isinstance(text_labels[0], list) else text_labels
@@ -533,7 +613,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                     continue
                 
                 # Add frame data to JSON
-                # Absoluten Pfad zum Frame verwenden
+                # Use absolute path to frame
                 absolute_frame_path = os.path.abspath(frame_path)
                 
                 frame_data = {
@@ -551,11 +631,11 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 if len(detections) > 0:
                     results_data["detections"].append(frame_data)
                     results_data["metadata"]["frames_with_detections"] += 1
-                    print(f" -> {len(detections)} Detektion(en)!")
+                    print(f" -> {len(detections)} detection(s)!")
                 else:
-                    print(" -> keine Detektionen")
+                    print(" -> no detections")
                 
-                # Memory-Management: Alle 10 Frames Memory leeren (aggressiver)
+                # Memory management: Clear memory every 10 frames (aggressive)
                 if processed_count % 10 == 0:
                     clear_memory(device)
                     
@@ -565,7 +645,7 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
                 print(f"Error processing {frame_path}: {e}")
                 continue
 
-    # JSON-Datei schreiben - Name basierend auf Input mit Modell-Suffix
+    # Write JSON file - Name based on input with model suffix
     if input_type == 'video':
         # For videos: Name based on video filename with model suffix
         video_name = Path(input_path).stem
@@ -577,25 +657,25 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         output_filename = f"{folder_name}_detection_results_{model_identifier}.json"
         parent_dir = os.path.dirname(input_path)
     
-    # JSON-Datei im detection_results Verzeichnis speichern
+    # Save JSON file in detection_results directory
     detection_results_dir = os.path.join(parent_dir, "detection_results")
     os.makedirs(detection_results_dir, exist_ok=True)
     output_path = os.path.join(detection_results_dir, output_filename)
 
-    # Endstatistiken berechnen
+    # Calculate final statistics
     end_time = datetime.now()
     total_processing_time = end_time - start_time
     detection_rate = (results_data['metadata']['frames_with_detections'] / results_data['metadata']['processed_frames']) * 100 if results_data['metadata']['processed_frames'] > 0 else 0
 
     print("\n" + "="*60)
-    print("VERARBEITUNG ABGESCHLOSSEN")
+    print("PROCESSING COMPLETED")
     print("="*60)
-    print(f"Startzeit:           {start_time.strftime('%H:%M:%S')}")
-    print(f"Endzeit:             {end_time.strftime('%H:%M:%S')}")
-    print(f"Gesamtdauer:         {total_processing_time}")
-    print(f"Durchschnitt/Frame:  {total_processing_time.total_seconds()/results_data['metadata']['processed_frames']:.2f}s")
+    print(f"Start time:          {start_time.strftime('%H:%M:%S')}")
+    print(f"End time:            {end_time.strftime('%H:%M:%S')}")
+    print(f"Total duration:      {total_processing_time}")
+    print(f"Average/frame:       {total_processing_time.total_seconds()/results_data['metadata']['processed_frames']:.2f}s")
     print("-"*60)
-    # Anzahl Frames je nach Input-Typ ermitteln
+    # Determine frame count based on input type
     if 'total_frames' in results_data['metadata']:
         total_frames_count = results_data['metadata']['total_frames']
     elif 'video_properties' in results_data['metadata']:
@@ -604,16 +684,16 @@ Hinweis: Videos werden direkt aus dem Stream verarbeitet ohne Zwischenspeicherun
         total_frames_count = results_data['metadata']['processed_frames']
     
     print(f"Found frames:        {total_frames_count}")
-    print(f"Verarbeitete Frames: {results_data['metadata']['processed_frames']}")
-    print(f"Frames m. Detektion: {results_data['metadata']['frames_with_detections']}")
-    print(f"Detektionsrate:      {detection_rate:.1f}%")
+    print(f"Processed frames:    {results_data['metadata']['processed_frames']}")
+    print(f"Frames w. detection: {results_data['metadata']['frames_with_detections']}")
+    print(f"Detection rate:      {detection_rate:.1f}%")
 
     # Count detection details
     total_detections = sum(len(frame['detections']) for frame in results_data['detections'])
     cat_detections = sum(len([d for d in frame['detections'] if 'cat' in d['label']]) for frame in results_data['detections'])
 
-    print(f"Gesamt Detektionen:  {total_detections}")
-    print(f"  - Katzen:          {cat_detections}")
+    print(f"Total detections:    {total_detections}")
+    print(f"  - Cats:            {cat_detections}")
     print("="*60)
 
     try:

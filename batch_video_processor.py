@@ -13,9 +13,11 @@ Supported Video Formats:
 Usage:
     python batch_video_processor.py /path/to/video/directory
     python batch_video_processor.py /path/to/video/directory --model yolo --yolo-model yolo12x.pt
+    python batch_video_processor.py /path/to/video/directory --skip-frames 5
     python batch_video_processor.py /path/to/video/directory --skip-conversion --skip-detection
+    python batch_video_processor.py /path/to/video/directory --skip-conversion --model yolo --yolo-model yolo12x.pt
 
-Author: AI Assistant
+Author: Andre Motz
 Version: 1.0
 """
 
@@ -121,7 +123,7 @@ def run_convert_video_to_frames(video_path, quality=75):
         return False, 0, None
 
 
-def run_ai_processor(frames_dir, model_type='owlv2', yolo_model='yolo12x.pt'):
+def run_ai_processor(frames_dir, model_type='owlv2', yolo_model='yolo12x.pt', skip_frames=1):
     """
     Runs ai-processor.py for a frame directory
     
@@ -129,6 +131,7 @@ def run_ai_processor(frames_dir, model_type='owlv2', yolo_model='yolo12x.pt'):
         frames_dir (str): Path to frame directory
         model_type (str): AI model type ('owlv2' or 'yolo')
         yolo_model (str): YOLO model name
+        skip_frames (int): Process only every N-th frame (default: 1 = all frames)
     
     Returns:
         tuple: (success, results_file)
@@ -148,6 +151,9 @@ def run_ai_processor(frames_dir, model_type='owlv2', yolo_model='yolo12x.pt'):
         
         if model_type == 'yolo':
             cmd.extend(["--yolo-model", yolo_model])
+        
+        if skip_frames > 1:
+            cmd.extend(["--skip-frames", str(skip_frames)])
         
         result = subprocess.run(cmd, capture_output=True, text=True, cwd=os.getcwd())
         
@@ -180,7 +186,7 @@ def run_ai_processor(frames_dir, model_type='owlv2', yolo_model='yolo12x.pt'):
 
 
 def process_single_video(video_path, model_type='owlv2', yolo_model='yolo12x.pt', 
-                        quality=75, skip_conversion=False, skip_detection=False):
+                        quality=75, skip_conversion=False, skip_detection=False, skip_frames=1):
     """
     Processes a single video through the complete pipeline
     
@@ -191,6 +197,7 @@ def process_single_video(video_path, model_type='owlv2', yolo_model='yolo12x.pt'
         quality (int): JPEG quality
         skip_conversion (bool): Skip conversion
         skip_detection (bool): Skip AI detection
+        skip_frames (int): Process only every N-th frame (default: 1 = all frames)
     
     Returns:
         dict: Processing statistics
@@ -234,7 +241,7 @@ def process_single_video(video_path, model_type='owlv2', yolo_model='yolo12x.pt'
         
         # Step 2: AI detection (if not skipped)
         if not skip_detection:
-            success, results_file = run_ai_processor(stats['frames_dir'], model_type, yolo_model)
+            success, results_file = run_ai_processor(stats['frames_dir'], model_type, yolo_model, skip_frames)
             stats['detection_success'] = success
             stats['results_file'] = results_file
             
@@ -317,10 +324,13 @@ Examples:
   # With YOLO model:
   python batch_video_processor.py /path/to/video/directory --model yolo --yolo-model yolo12x.pt
   
+  # Process only every 5th frame (5x faster):
+  python batch_video_processor.py /path/to/video/directory --skip-frames 5
+  
   # Only conversion (without AI detection):
   python batch_video_processor.py /path/to/video/directory --skip-detection
   
-  # Only AI detection (frames must already exist):
+  # Only AI detection:
   python batch_video_processor.py /path/to/video/directory --skip-conversion
         '''
     )
@@ -345,6 +355,12 @@ Examples:
         type=int,
         default=75,
         help='JPEG quality for frame extraction (1-100, default: 75)'
+    )
+    parser.add_argument(
+        '--skip-frames',
+        type=int,
+        default=1,
+        help='Process only every N-th frame (default: 1 = all frames). For 5x speed: --skip-frames 5'
     )
     parser.add_argument(
         '--skip-conversion',
@@ -402,7 +418,8 @@ Examples:
             yolo_model=args.yolo_model,
             quality=args.quality,
             skip_conversion=args.skip_conversion,
-            skip_detection=args.skip_detection
+            skip_detection=args.skip_detection,
+            skip_frames=args.skip_frames
         )
         
         results.append(stats)

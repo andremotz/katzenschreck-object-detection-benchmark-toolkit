@@ -51,21 +51,24 @@ python ai-processor.py --model yolo --yolo-model yolo8x.pt /path/to/video.mp4
 
 # Use YOLOv11 model
 python ai-processor.py --model yolo --yolo-model yolo11l.pt /path/to/video.mp4
+
+# Process with skip-frames for 5x faster processing
+python ai-processor.py --model yolo --skip-frames 5 /path/to/video.mp4
 ```
 
 #### YOLO Model Overview
 | Model | Size | Speed | Accuracy | Usage |
 |--------|-------|----------------|-------------|------------|
-| `yolo8n.pt` | Nano | Very fast | Basic | Quick tests |
-| `yolo8s.pt` | Small | Fast | Good | Production use |
-| `yolo8m.pt` | Medium | Medium | Very good | Balanced solution |
-| `yolo8l.pt` | Large | Slow | Excellent | High accuracy |
-| `yolo8x.pt` | Extra Large | Very slow | Best | Maximum precision (default) |
-| `yolo11n.pt` | Nano | Very fast | Basic | Quick tests |
-| `yolo11s.pt` | Small | Fast | Good | Production use |
-| `yolo11m.pt` | Medium | Medium | Very good | Balanced solution |
-| `yolo11l.pt` | Large | Slow | Excellent | High accuracy |
-| `yolo11x.pt` | Extra Large | Very slow | Best | Maximum precision |
+| `yolov8n.pt` | Nano 
+| `yolov8s.pt` | Small 
+| `yolov8m.pt` | Medium 
+| `yolov8l.pt` | Large
+| `yolov8x.pt` | Extra Large
+| `yolo11n.pt` | Nano
+| `yolo11s.pt` | Small
+| `yolo11m.pt` | Medium
+| `yolo11l.pt` | Large 
+| `yolo11x.pt` | Extra Large
 
 ### Using YOLO Models
 
@@ -76,6 +79,9 @@ python ai-processor.py --model yolo /path/to/video.mp4
 
 # Or process frame folders directly
 python ai-processor.py --model yolo /path/to/video_frames/
+
+# Fast processing with skip-frames (process every 5th frame = 5x speed)
+python ai-processor.py --model yolo --skip-frames 5 /path/to/video.mp4
 ```
 
 #### Specifying YOLO Model Variants
@@ -112,9 +118,10 @@ python ai-processor.py --model yolo /path/to/video.mp4
 
 #### Performance Recommendations
 - **Large datasets**: Use `yolo11n.pt` or `yolo11s.pt` for speed
+- **Very large datasets**: Use `--skip-frames 5` or higher to process only every N-th frame
 - **High accuracy needed**: Use `yolo11l.pt` or `yolo11x.pt`
 - **GPU available**: All YOLO models benefit significantly from GPU acceleration
-- **CPU only**: Nano and Small models are most practical
+- **CPU only**: Nano and Small models are most practical, combine with `--skip-frames` for faster processing
 
 #### Detection Process
 1. **Frame Loading**: Sequential processing of extracted image sequence
@@ -287,6 +294,9 @@ python ai-processor.py /path/to/video.mp4 --model yolo --yolo-model yolov8x.pt
 # Process frame folder with YOLO
 python ai-processor.py /path/to/frames/ --model yolo --yolo-model yolov8s.pt
 
+# Fast processing with skip-frames (5x faster)
+python ai-processor.py /path/to/video.mp4 --model yolo --skip-frames 5
+
 # Use OWLv2 (slower but more flexible)
 python ai-processor.py /path/to/video.mp4 --model owlv2
 ```
@@ -305,6 +315,7 @@ python ai-processor.py /path/to/video.mp4 --model owlv2
 
 **Performance Tips:**
 - Use smaller YOLO models (nano/small) for faster processing
+- Use `--skip-frames 5` or higher to speed up processing significantly
 - Process shorter video segments if memory is limited
 - Monitor GPU memory usage with `nvidia-smi`
 
@@ -412,6 +423,7 @@ The complete workflow of the detection system follows a structured 6-stage proce
 
 #### Performance Recommendations:
 - **Large datasets**: Use YOLO (`--model yolo`) for significantly faster processing
+- **Very large datasets**: Combine YOLO with `--skip-frames 5` for 5x speed increase
 - **Highest accuracy**: OWLv2 for more precise text-based animal detection
 - **GPU usage**: Both models benefit from CUDA/MPS support
 - **Model comparison**: Parallel processing with both models for quality comparison
@@ -433,6 +445,9 @@ For technical implementation:
    ```bash
    # Fast processing with YOLO
    python ai-processor.py --model yolo /path/to/video_frames/
+   
+   # Very fast processing with skip-frames (5x speed)
+   python ai-processor.py --model yolo --skip-frames 5 /path/to/video_frames/
    
    # Precise processing with OWLv2
    python ai-processor.py --model owlv2 /path/to/video_frames/
