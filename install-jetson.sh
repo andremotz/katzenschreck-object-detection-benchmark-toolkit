@@ -14,9 +14,8 @@ fi
 echo "🔥 Installing PyTorch for Jetson..."
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
 
-# Install basic requirements
+# Install basic requirements (YOLO only)
 echo "📚 Installing basic requirements..."
-pip install transformers>=4.30.0
 pip install Pillow>=9.0.0
 pip install scipy
 pip install opencv-python-headless>=4.8.0
@@ -41,4 +40,5 @@ python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 python -c "from ultralytics import YOLO; print('YOLO loaded successfully')"
 
 echo "✅ Installation complete!"
-echo "🎯 You can now run: python ai-processor.py --model yolo /path/to/video.mp4"
+echo "🎯 You can now run: python ai-processor.py /path/to/video.mp4"
+echo "📝 Note: Only YOLO models are supported on Jetson (OWLv2 removed for compatibility)"

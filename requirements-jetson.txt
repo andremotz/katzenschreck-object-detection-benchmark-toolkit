@@ -1,18 +1,22 @@
-# Jetson Xavier specific requirements
+# Jetson Xavier specific requirements - YOLO only
 # Use this file instead of requirements.txt on Jetson devices
 
-transformers>=4.30.0
+# Core dependencies
 torch>=2.0.0
 torchvision>=0.15.0
 Pillow>=9.0.0
 scipy
 opencv-python-headless>=4.8.0
-# YOLO support (optional)
-ultralytics>=8.0.0
 numpy>=1.21.0
+
+# YOLO support (required)
+ultralytics>=8.0.0
 
 # Jetson-specific fixes:
 # Note: Install polars separately with --no-deps to avoid backend dependency issues
 # pip install polars --no-deps
 # Alternative: use pandas instead of polars if polars fails
 pandas>=1.5.0
+
+# Note: transformers removed for Jetson compatibility
+# OWLv2 models not supported on Jetson due to PyTorch version conflicts
