@@ -227,6 +227,114 @@ pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
 ```
 
+### Jetson Xavier Installation
+
+This project is fully compatible with NVIDIA Jetson Xavier devices running Ubuntu 20.04 and Python 3.8. The AI processor supports both OWLv2 and YOLO models with CUDA acceleration.
+
+#### Prerequisites for Jetson Xavier
+- Ubuntu 20.04 LTS
+- Python 3.8
+- CUDA 11.8 (included with JetPack)
+- cuDNN (included with JetPack)
+- Virtual environment (recommended)
+
+#### Step-by-Step Jetson Installation
+
+1. **Activate virtual environment** (if using one):
+   ```bash
+   source venv/bin/activate
+   ```
+
+2. **Install PyTorch for Jetson** (critical for ARM64 compatibility):
+   ```bash
+   # Install PyTorch with CUDA 11.8 support for Jetson
+   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+   ```
+
+3. **Install other dependencies**:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Install OpenCV for Jetson** (if needed):
+   ```bash
+   pip install opencv-python-headless
+   ```
+
+5. **Verify CUDA support**:
+   ```bash
+   python -c "import torch; print(f'CUDA available: {torch.cuda.is_available()}')"
+   python -c "import torch; print(f'CUDA device count: {torch.cuda.device_count()}')"
+   ```
+
+#### Jetson-Specific Usage
+
+The AI processor automatically detects CUDA on Jetson and uses GPU acceleration:
+
+```bash
+# Process video with YOLO (recommended for Jetson)
+python ai-processor.py /path/to/video.mp4 --model yolo --yolo-model yolov8x.pt
+
+# Process frame folder with YOLO
+python ai-processor.py /path/to/frames/ --model yolo --yolo-model yolov8s.pt
+
+# Use OWLv2 (slower but more flexible)
+python ai-processor.py /path/to/video.mp4 --model owlv2
+```
+
+#### Jetson Performance Recommendations
+
+**Model Selection for Jetson Xavier:**
+- **YOLOv8n/YOLOv8s**: Best for real-time processing
+- **YOLOv8m**: Good balance of speed and accuracy
+- **YOLOv8l/YOLOv8x**: Maximum accuracy (may be slower)
+
+**Memory Management:**
+- The script includes aggressive CUDA memory clearing
+- Processes frames in batches to prevent out-of-memory errors
+- Automatic fallback to CPU if GPU memory is exhausted
+
+**Performance Tips:**
+- Use smaller YOLO models (nano/small) for faster processing
+- Process shorter video segments if memory is limited
+- Monitor GPU memory usage with `nvidia-smi`
+
+#### Troubleshooting Jetson Issues
+
+**Common Issues:**
+
+1. **CUDA not detected**:
+   ```bash
+   # Check CUDA installation
+   nvidia-smi
+   # Reinstall PyTorch with correct CUDA version
+   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu118
+   ```
+
+2. **Out of memory errors**:
+   - Use smaller YOLO models (`yolov8n.pt`, `yolov8s.pt`)
+   - Process shorter video segments
+   - The script automatically handles memory management
+
+3. **Slow performance**:
+   - Ensure CUDA is properly detected
+   - Use YOLO instead of OWLv2 for better performance
+   - Check that the model is running on GPU, not CPU
+
+**Verification Commands:**
+```bash
+# Check CUDA availability
+python -c "import torch; print(f'Device: {torch.cuda.get_device_name(0) if torch.cuda.is_available() else \"CPU\"}')"
+
+# Test YOLO model loading
+python -c "from ultralytics import YOLO; model = YOLO('yolov8n.pt'); print('YOLO loaded successfully')"
+
+# Test video processing (short test)
+python ai-processor.py --model yolo --yolo-model yolov8n.pt /path/to/short_test_video.mp4
+```
+
+The Jetson Xavier provides excellent performance for AI object detection tasks, especially with YOLO models optimized for edge computing.
+
 ### Path Adjustments
 
 After installation, you may need to adjust paths in the scripts for your local environment:
