@@ -254,16 +254,15 @@ This project is fully compatible with NVIDIA Jetson Xavier devices running Ubunt
 
 3. **Install other dependencies**:
    ```bash
-   # Use Jetson-specific requirements to avoid polars compilation issues
+   # Use Jetson-specific requirements (uses pandas instead of polars)
    pip install -r requirements-jetson.txt
    
-   # If polars still fails, try minimal requirements:
+   # If you need polars specifically, install it separately:
+   # pip install polars --no-deps
+   
+   # Alternative: try minimal requirements if issues persist:
    # pip install -r requirements-minimal.txt
    # pip install ultralytics --no-deps
-   
-   # Alternative: install without dependencies and use pandas instead:
-   # pip install polars --no-deps
-   # pip install pandas>=1.5.0
    ```
 
 4. **Install OpenCV for Jetson** (if needed):
