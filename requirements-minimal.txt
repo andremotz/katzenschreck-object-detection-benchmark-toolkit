@@ -1,0 +1,14 @@
+# Minimal requirements for Jetson when polars fails
+# Use this if requirements-jetson.txt still has issues
+
+transformers>=4.30.0
+torch>=2.0.0
+torchvision>=0.15.0
+Pillow>=9.0.0
+scipy
+opencv-python-headless>=4.8.0
+numpy>=1.21.0
+
+# Install ultralytics without dependencies to avoid polars
+# Then install only the essential dependencies manually
+# ultralytics>=8.0.0  # Install separately with --no-deps

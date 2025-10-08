@@ -185,7 +185,7 @@ To install the scripts on a new machine, follow these steps:
 1. **Clone repository**
    ```bash
    git clone <repository-url>
-   cd ai-detection-model-comparison
+   cd katzenschreck-object-detection-benchmark-toolkit
    ```
 
 2. **Create virtual environment**
@@ -237,6 +237,7 @@ This project is fully compatible with NVIDIA Jetson Xavier devices running Ubunt
 - CUDA 11.8 (included with JetPack)
 - cuDNN (included with JetPack)
 - Virtual environment (recommended)
+- https://docs.nvidia.com/jetson/jetpack/5.1.5/install-setup/index.html
 
 #### Step-by-Step Jetson Installation
 
@@ -253,7 +254,16 @@ This project is fully compatible with NVIDIA Jetson Xavier devices running Ubunt
 
 3. **Install other dependencies**:
    ```bash
-   pip install -r requirements.txt
+   # Use Jetson-specific requirements to avoid polars compilation issues
+   pip install -r requirements-jetson.txt
+   
+   # If polars still fails, try minimal requirements:
+   # pip install -r requirements-minimal.txt
+   # pip install ultralytics --no-deps
+   
+   # Alternative: install without dependencies and use pandas instead:
+   # pip install polars --no-deps
+   # pip install pandas>=1.5.0
    ```
 
 4. **Install OpenCV for Jetson** (if needed):
@@ -320,6 +330,19 @@ python ai-processor.py /path/to/video.mp4 --model owlv2
    - Ensure CUDA is properly detected
    - Use YOLO instead of OWLv2 for better performance
    - Check that the model is running on GPU, not CPU
+
+4. **Polars installation error** (puccinialin not found):
+   ```bash
+   # Solution 1: Install polars without dependencies
+   pip install polars --no-deps
+   
+   # Solution 2: Use pandas instead of polars
+   pip install pandas>=1.5.0
+   
+   # Solution 3: Skip polars entirely (ultralytics will work without it)
+   pip install ultralytics --no-deps
+   pip install torch torchvision transformers pillow opencv-python-headless numpy scipy
+   ```
 
 **Verification Commands:**
 ```bash
