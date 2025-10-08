@@ -24,7 +24,7 @@ Usage:
     python ai-processor.py /path/to/frames/folder --model yolo --yolo-model yolo12x.pt
     python ai-processor.py /path/to/video.mp4 --skip-frames 5  # 5x faster processing
 
-Author: AI Assistant
+Author: Andre Motz
 Version: 1.0
 """
 
@@ -649,12 +649,18 @@ Note: Videos are processed directly from the stream without intermediate storage
     if input_type == 'video':
         # For videos: Name based on video filename with model suffix
         video_name = Path(input_path).stem
-        output_filename = f"{video_name}_detection_results_{model_identifier}.json"
+        if skip_frames > 1:
+            output_filename = f"{video_name}_detection_results_{model_identifier}_skip{skip_frames}.json"
+        else:
+            output_filename = f"{video_name}_detection_results_{model_identifier}.json"
         parent_dir = Path(input_path).parent
     else:
         # For frame folders: Name based on folder name with model suffix
         folder_name = os.path.basename(input_path)
-        output_filename = f"{folder_name}_detection_results_{model_identifier}.json"
+        if skip_frames > 1:
+            output_filename = f"{folder_name}_detection_results_{model_identifier}_skip{skip_frames}.json"
+        else:
+            output_filename = f"{folder_name}_detection_results_{model_identifier}.json"
         parent_dir = os.path.dirname(input_path)
     
     # Save JSON file in detection_results directory
