@@ -1,3 +1,5 @@
+batch-scripts/
+
 # Virtual environment
 .venv/
 venv/
